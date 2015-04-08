@@ -97,7 +97,7 @@ string GENPath="..\\GENresult\\";
 string SchedulePath="..\\WSNresult\\TSBResult_ver2\\";
 string PowerPath="..\\WSNresult\\TSBResult_ver2\\";
 string ResultPath="..\\WSNresult\\TSBResult_ver2\\";
-short int Rateproposal=1;				//AssignRate()中的方法編號 0=>Event, 1=>TSB, 2=>DIF, 
+short int Rateproposal=2;				//AssignRate()中的方法編號 0=>Event, 1=>TSB, 2=>DIF, 
 bool preemptionenable=true;			//設定可否preemption
 
 int Flowinterval=0;					//觸發進入flow的conneciton interval
@@ -1026,22 +1026,25 @@ void TSB(){
 
 	//===========================================找出2個Minperiod內的最大block佔量
 	Maxsize=Maxsize*ceil(Maxload/payload);
+
+
+	/*
 	double Minsize=0;
 	
 	while(TSBpktQ->readynextpkt->period < 2*Minperiod){
 		Minsize++;
 		TSBpktQ=TSBpktQ->readynextpkt;
+		if(TSBpktQ==NULL)
+			break;
 	}
-
+	*/
 	/*---------------------------------
 	(2*Minsize+Maxsize)大於兩倍Buffersize
 	---------------------------------*/
 	
-	if(false){//(2*Minsize+Maxsize) > 2*Maxbuffersize
-		cout<<"Min period / 2"<<endl;
+	if(false){//(2*Minsize+Maxsize) > 2*Maxbuffersize (提供給non-preemption 用)
 		Tc=floor(Minperiod/2);
 	}else{
-		cout<<"Revise interval"<<endl;
 		PacketQueue();		//先排Ready Queue
 		Packet *TSBpkt=ReadyQ;
 		double Totalsize=0;
