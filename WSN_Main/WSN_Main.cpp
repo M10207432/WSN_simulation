@@ -22,17 +22,21 @@ struct Node{
 	double coor_x,coor_y;//座標
 	double distanceto_BS;//到Base station 距離
 	double energy;
+	double eventinterval;
 	int id;
 	short int ExTimeslot;
 	short int LatestTimeslot;
 
 	string State;		//Wakeup、Sleep、Transmission & Idle
 	Packet* pkt;
+	Packet* pktQueue;
+	PacketBuffer* NodeBuffer;
 	Node* nextnd;
 	Node* prend;
 };
 struct Packet{
 	int id;
+	int nodeid;
 	int load;
 	int exeload;
 	double arrival;
@@ -51,12 +55,16 @@ struct Packet{
 	double rate;
 
 	Node* node;
-	Packet* nextpkt;
-	Packet* prepkt;
-	Packet* nodenextpkt;
-	Packet* nodeprepkt;
-	Packet* readynextpkt;
-	Packet* readyprepkt;
+
+	Packet* nextpkt;		//Global packet link
+	Packet* prepkt;			//Global packet link
+	Packet* nodenextpkt;	//Local node packet link
+	Packet* nodeprepkt;		//Local node packet link
+	
+	Packet* readynextpkt;	//Global ready packet link
+	Packet* readyprepkt;	//Global ready packet link
+	Packet* nodereadynextpkt;	//local node ready packet link
+	Packet* nodereadyprepkt;	//local node ready packet link
 
 	Packet* buffernextpkt;
 };
@@ -91,13 +99,13 @@ void Rate_TO_Interval(int);		//Nonpreemption 方法
 		Global value
 ==================================*/
 const float MIN_Uti=1.0;
-const float MAX_Uti=2.0;
+const float MAX_Uti=5.0;
 const short int Set=50;
 string GENPath="..\\GENresult\\";
 string SchedulePath="..\\WSNresult\\TSBResult_ver2\\";
 string PowerPath="..\\WSNresult\\TSBResult_ver2\\";
 string ResultPath="..\\WSNresult\\TSBResult_ver2\\";
-short int Rateproposal=2;				//AssignRate()中的方法編號 0=>Event, 1=>TSB, 2=>DIF, 
+short int Rateproposal=1;				//AssignRate()中的方法編號 0=>Event, 1=>TSB, 2=>DIF, 
 bool preemptionenable=true;			//設定可否preemption
 
 int Flowinterval=0;					//觸發進入flow的conneciton interval
@@ -179,17 +187,6 @@ int main(){
 			system("PAUSE");
 			return 0;
 		}
-		//========================開啟PowerPath
-		string PowerFileBuffer=PowerPath;
-		PowerFileBuffer.append("Power_");
-		PowerFileBuffer.append(filename);
-
-		Powerfile.open(PowerFileBuffer, ios::out);	//開啟檔案.寫入狀態
-		if(!Powerfile){//如果開啟檔案失敗，fp為0；成功，fp為非0
-			cout<<"Fail to open file: "<<PowerFileBuffer<<endl;
-			system("PAUSE");
-			return 0;
-		}
 
 		//========================開啟Resultfile
 		string ResultBuffer=ResultPath;
@@ -254,7 +251,6 @@ int main(){
 			Headflow->pkt=NULL;//一開始的flow中包含的封包設定為NULL
 			
 			while(Timeslot<Hyperperiod){
-				Powerfile<<Timeslot;
 
 				if(Timeslot%Flowinterval==0){
 					PacketQueue();	
@@ -268,7 +264,6 @@ int main(){
 					FlowEDF();	//主要Scheduling
 				}
 
-				Powerfile<<endl;
 				Timeslot++;
 			}
 			
@@ -336,7 +331,6 @@ int main(){
 
 		GENfile.close();
 		Schdulefile.close();
-		Powerfile.close();
 		Resultfile.close();
 	}
 
@@ -384,7 +378,7 @@ void FlowEDF(){
 						Headflow->pkt=packet;
 					}else{
 						//判斷是否miss deadline
-						if((Timeslot)>packet->deadline){
+						if((Timeslot)>=packet->deadline){
 							//cout<<"Time slot:"<<Timeslot<<"  PKT"<<packet->id<<" Miss deadline"<<endl;
 							Schdulefile<<"(PKT"<<packet->id<<" Miss deadline"<<" Deadline "<<packet->deadline<<")";
 
@@ -538,110 +532,119 @@ void PacketQueue(){
 
 	delete camparepkt;camparepkt=NULL;
 	delete tmpReadyQ;tmpReadyQ=NULL;
-	//----------------------------------------Ready Queue done
+	//----------------------------------------Global Ready Queue done
+
+	/*--------------------------
+		建立各自node上的
+		ready packet queue
+	--------------------------*/
+	Node *tmp_node;
+	Packet *tmpreadypkt;
+	Packet *tmp_nodepkt=ReadyQ->readynextpkt;
+	while(tmp_nodepkt!=NULL){
+		//先找所屬的 node 感測器
+		tmp_node=tmp_nodepkt->node;
+
+		//找node->pktQueue 最後一個
+		tmpreadypkt=tmp_node->pktQueue;
+		if(tmp_node->pktQueue==NULL){
+			tmp_node->pktQueue=tmp_nodepkt;			
+			tmp_node->pktQueue->nodereadynextpkt=NULL;
+			tmp_node->pktQueue->nodereadyprepkt=NULL;
+		}else{
+			while(tmpreadypkt->nodereadynextpkt!=NULL){
+				tmpreadypkt=tmpreadypkt->nodereadynextpkt;
+			}
+			tmpreadypkt->nodereadynextpkt=tmp_nodepkt;				
+			tmpreadypkt->nodereadynextpkt->nodereadynextpkt=NULL;
+			tmpreadypkt->nodereadynextpkt->nodereadyprepkt=tmp_nodepkt->nodereadyprepkt;
+		}
+
+		//換下一個Global Queue packet
+		tmp_nodepkt=tmp_nodepkt->readynextpkt;
+	}
 }
 /*=============================================	
 		建立好Buffer上的packet
 	pkt link list, load, packet size
 =============================================*/
 void BufferSet(){
-	
-	Buffer->pktsize=0;//先把buffer內的封包量清空
-	Buffer->load=0;
-	Buffer->pkt=NULL;
+	Node *Bufnode=Head->nextnd;
+
+	while(Bufnode!=NULL){
+		Bufnode->NodeBuffer->pktsize=0;//先把buffer內的封包量清空
+		Bufnode->NodeBuffer->load=0;
+		Bufnode->NodeBuffer->pkt=NULL;
 		
-	Packet *tmpbufferpkt;
+		Packet *tmpbufferpkt;
+		int tmpsize=Bufnode->NodeBuffer->pktsize;
+		int intervalsize=0;
 
-	if(preemptionenable!=true){
-		//先在Buffer上放還未做完的packet，先抓Buffer最後一個packet
-		if(Headflow->pkt!=NULL){
-			//放入Buffer link list
-			Buffer->pkt=Headflow->pkt;
-			tmpbufferpkt=Buffer->pkt;
-				
-			//設定Buffer size
-			if((Buffer->pktsize+ceil(tmpbufferpkt->exeload/payload))<=Maxbuffersize){
-				Buffer->pktsize=Buffer->pktsize+ceil(tmpbufferpkt->exeload/payload);//還有packet
-			}else{
-				Buffer->pktsize=Maxbuffersize;
-			}
-				
-			//計算Buffer load
-			if(tmpbufferpkt->exeload<(Maxbuffersize*payload))
-				Buffer->load=tmpbufferpkt->exeload;
-			else
-				Buffer->load=Maxbuffersize*payload;
-
-			tmpbufferpkt->buffernextpkt=NULL;
-		}	
-	}
-
-	int tmpsize=Buffer->pktsize;
-	int intervalsize=0;
-
-	packet=ReadyQ->readynextpkt;
-	if(Buffer->pktsize!=0){
-		while(packet->readyflag!=1)			
-			packet=packet->readynextpkt;
-		if(packet==tmpbufferpkt)
-			packet=packet->readynextpkt;
-	}
-
-	while(Buffer->pktsize<Maxbuffersize && packet!=NULL){
-
-		if(packet->readyflag!=1){			//尚未ready
-			packet=packet->readynextpkt;
-		}else{
-			
-			//確認packet不存在於Buffer中
-			bool existflag=false;
-			Packet* existpkt=Buffer->pkt;
-			while(existpkt!=NULL){
-				if(existpkt==packet)
-					existflag=true;
-				existpkt=existpkt->buffernextpkt;
-			}
-
-
-			if(existflag!=true){
-				//-----------------------------------------放入Buffer link list
-				if(Buffer->pktsize == 0){
-					Buffer->pkt=packet;
-					tmpbufferpkt=Buffer->pkt;
-					tmpbufferpkt->buffernextpkt=NULL;
-				}else {
-					tmpbufferpkt->buffernextpkt=packet;
-					tmpbufferpkt=packet;
-					tmpbufferpkt->buffernextpkt=NULL;
-				}
-					
-				//-----------------------------------------設定Buffer size
-				tmpsize=Buffer->pktsize;
-				if((Buffer->pktsize+ceil(packet->load/payload))<=Maxbuffersize){
-					Buffer->pktsize=(Buffer->pktsize+ceil(packet->load/payload));
-				}else{
-					Buffer->pktsize=Maxbuffersize;
-				}
-				intervalsize=Buffer->pktsize-tmpsize;//可塞的packet量
-
-				//-----------------------------------------計算Buffer load
-				if(packet->load>payload){
-					double tmpload=packet->load;
-					while(intervalsize!=0){
-						if(tmpload>payload)
-							Buffer->load=Buffer->load+payload;
-						else
-							Buffer->load=Buffer->load+tmpload;
-						tmpload=tmpload-payload;
-						intervalsize--;
-					}
-
-				}else{
-					Buffer->load=Buffer->load+packet->load;
-				}
-			}
-			packet=packet->readynextpkt;
+		packet=Bufnode->pktQueue;
+		if(Buffer->pktsize!=0){
+			while(packet->readyflag!=1)			
+				packet=packet->nodereadynextpkt;
+			if(packet==tmpbufferpkt)
+				packet=packet->nodereadynextpkt;
 		}
+
+		while(Bufnode->NodeBuffer->pktsize<Maxbuffersize && packet!=NULL){
+
+			if(packet->readyflag!=1){			//尚未ready
+				packet=packet->nodereadynextpkt;
+			}else{
+			
+				//確認packet不存在於Buffer中
+				bool existflag=false;
+				Packet* existpkt=Bufnode->NodeBuffer->pkt;
+				while(existpkt!=NULL){
+					if(existpkt==packet)
+						existflag=true;
+					existpkt=existpkt->buffernextpkt;
+				}
+
+				if(existflag!=true){
+					//-----------------------------------------放入Buffer link list
+					if(Bufnode->NodeBuffer->pktsize == 0){
+						Bufnode->NodeBuffer->pkt=packet;
+						tmpbufferpkt=Bufnode->NodeBuffer->pkt;
+						tmpbufferpkt->buffernextpkt=NULL;
+					}else {
+						tmpbufferpkt->buffernextpkt=packet;
+						tmpbufferpkt=packet;
+						tmpbufferpkt->buffernextpkt=NULL;
+					}
+					
+					//-----------------------------------------設定Buffer size
+					tmpsize=Bufnode->NodeBuffer->pktsize;
+					if((Bufnode->NodeBuffer->pktsize+ceil(packet->exeload/payload))<=Maxbuffersize){
+						Bufnode->NodeBuffer->pktsize=(Bufnode->NodeBuffer->pktsize+ceil(packet->exeload/payload));
+					}else{
+						Bufnode->NodeBuffer->pktsize=Maxbuffersize;
+					}
+					intervalsize=Bufnode->NodeBuffer->pktsize-tmpsize;//可塞的packet量
+
+					//-----------------------------------------計算Buffer load
+					if(packet->exeload>payload){
+						double tmpload=packet->exeload;
+						while(intervalsize!=0){
+							if(tmpload>payload)
+								Bufnode->NodeBuffer->load=Bufnode->NodeBuffer->load+payload;
+							else
+								Bufnode->NodeBuffer->load=Bufnode->NodeBuffer->load+tmpload;
+							tmpload=tmpload-payload;
+							intervalsize--;
+						}
+
+					}else{
+						Bufnode->NodeBuffer->load=Bufnode->NodeBuffer->load+packet->exeload;
+					}
+				}
+				packet=packet->nodereadynextpkt;
+			}
+		}
+
+		Bufnode=Bufnode->nextnd;
 	}
 
 }
@@ -681,12 +684,11 @@ void NodeEnergy(){
 			P=IntervalPower(Pktsize,Enode->LatestTimeslot-Enode->ExTimeslot);
 			Enode->energy=Enode->energy+P;
 			//cout<<"Interval:"<<(Enode->LatestTimeslot-Enode->ExTimeslot)<<" E:"<<Enode->energy<<endl;
-			Powerfile<<","<<P;
 			Enode->ExTimeslot=Enode->LatestTimeslot;//紀錄此次發送時間
 		}
 		//==========================Idle 狀態
 		if(Enode->State=="Idle"){
-			Powerfile<<","<<0;
+
 		}
 
 		Enode=Enode->nextnd;
@@ -837,6 +839,7 @@ void StructGEN(){
 		if(str=="Node"){
 			node=node->nextnd;
 			node->energy=0;
+			node->pktQueue=NULL;
 			packet=node->pkt;
 
 			node->id=ndid++;
@@ -848,9 +851,8 @@ void StructGEN(){
 			stream.clear();	stream<<strperiod;stream>>packet->period;				//Period
 			stream.clear();	stream<<strutilization;	stream>>packet->utilization;	//Utilization
 			stream.clear();	stream<<strhop;	stream>>packet->hop;	//Hop
-
-			packet->load=(packet->load);
-
+			
+			packet->nodeid=node->id;
 			packet->period=packet->period;
 			packet->node=node;														//所屬的感測器
 			packet->exehop=packet->hop;
@@ -1007,86 +1009,56 @@ void TSB(){
 	Packet *TSBpkt=Head->nextnd->pkt;
 	double Tc=0;
 	
-	//===========================================找Maxload
-	double Minperiod=TSBpktQ->readynextpkt->period;//找Minperiod
-	double Maxload=0;
-	double Maxsize=0;
-
-	while(TSBpkt!=NULL){
-		if(TSBpkt->load > Maxload)
-			Maxload=TSBpkt->load;
-		TSBpkt=TSBpkt->nextpkt;
-	}
-	TSBpkt=Head->nextnd->pkt;
-	while(TSBpkt!=NULL){
-		if(TSBpkt->load == Maxload)
-			Maxsize++;
-		TSBpkt=TSBpkt->nextpkt;
-	}
-
-	//===========================================找出2個Minperiod內的最大block佔量
-	Maxsize=Maxsize*ceil(Maxload/payload);
-
-
-	/*
-	double Minsize=0;
-	
-	while(TSBpktQ->readynextpkt->period < 2*Minperiod){
-		Minsize++;
-		TSBpktQ=TSBpktQ->readynextpkt;
-		if(TSBpktQ==NULL)
-			break;
-	}
-	*/
-	/*---------------------------------
-	(2*Minsize+Maxsize)大於兩倍Buffersize
-	---------------------------------*/
-	
 	if(false){//(2*Minsize+Maxsize) > 2*Maxbuffersize (提供給non-preemption 用)
-		Tc=floor(Minperiod/2);
+		//Tc=floor(Minperiod/2);
 	}else{
 		PacketQueue();		//先排Ready Queue
-		Packet *TSBpkt=ReadyQ;
-		double Totalsize=0;
-		double PacketSize=0;
-		double Tslot=0;
-		bool doneflag=false;
 
-		//======================找Minperiod, 設定為Tc init
-		Tc=TSBpkt->readynextpkt->period;
+		Node *TSBnode=Head->nextnd;
+		while(TSBnode!=NULL){
+			Packet *TSBpkt=TSBnode->pktQueue;
+			double Totalsize=0;
+			double PacketSize=0;
+			double Tslot=0;
+			bool doneflag=false;
 
-		//======================分析每一period下, 是否能meet deadline
-		Tslot=TSBpkt->readynextpkt->period;
+			//======================找Minperiod, 設定為Tc init
+			Tc=TSBpkt->period;
+
+			//======================分析每一period下, 是否能meet deadline
+			Tslot=TSBpkt->period;
 	
-		while(doneflag!=true){
-			Totalsize=0;
+			while(doneflag!=true){
+				Totalsize=0;
 
-			//算出所需buffer量
-			TSBpkt=ReadyQ->readynextpkt;
-			while(TSBpkt->period <= Tslot){
-				Totalsize=Totalsize+(ceil(TSBpkt->load/payload)*ceil(Tslot/TSBpkt->period));	
-				TSBpkt=TSBpkt->readynextpkt;
-				if(TSBpkt==NULL)
-					break;
-			}
+				//算出所需buffer量
+				TSBpkt=TSBnode->pktQueue;
+				while(TSBpkt->period <= Tslot){
+					Totalsize=Totalsize+(ceil(TSBpkt->load/payload)*ceil(Tslot/TSBpkt->period));	
+					TSBpkt=TSBpkt->nodereadynextpkt;
+					if(TSBpkt==NULL)
+						break;
+				}
 
-			PacketSize=floor(Tslot/Tc)*double(Maxbuffersize);
-			while(Totalsize > PacketSize){
-				Tc--;
 				PacketSize=floor(Tslot/Tc)*double(Maxbuffersize);
-			}
+				while(Totalsize > PacketSize){
+					Tc--;
+					PacketSize=floor(Tslot/Tc)*double(Maxbuffersize);
+				}
 
-			//更新Time slot
-			if(TSBpkt!=NULL){
-				Tslot=TSBpkt->period;
-			}else{
-				doneflag=true;
-			}
+				//更新Time slot
+				if(TSBpkt!=NULL){
+					Tslot=TSBpkt->period;
+				}else{
+					doneflag=true;
+				}
+			}	
+
+			TSBnode->eventinterval=Tc;
+			TSBnode=TSBnode->nextnd;
 		}
 	}
-
-	Connectioninterval=Tc;
-
+	
 }
 void Rate_TO_Interval(int defaultMinperiod){
 	//判斷是否需要改變Tc
