@@ -13,10 +13,17 @@ using namespace std;
 /*=================================
 		Structure
 ==================================*/
+
 struct Flow{
 	struct Packet* pkt;
 	struct Node* sourcenode;
 	struct Node* destinationnode;
+};
+
+struct PacketBuffer{
+	double pktsize;	//1~6 packets
+	int load;		//0~120bytes
+	Packet* pkt;
 };
 struct Node{
 	double coor_x,coor_y;//座標
@@ -30,9 +37,10 @@ struct Node{
 	string State;		//Wakeup、Sleep、Transmission & Idle
 	Packet* pkt;
 	Packet* pktQueue;
-	PacketBuffer* NodeBuffer;
 	Node* nextnd;
 	Node* prend;
+	
+	PacketBuffer* NodeBuffer;
 };
 struct Packet{
 	int id;
@@ -68,12 +76,6 @@ struct Packet{
 
 	Packet* buffernextpkt;
 };
-struct PacketBuffer{
-	double pktsize;	//1~6 packets
-	int load;		//0~120bytes
-	Packet* pkt;
-};
-
 struct DIFtable{
 	double load;
 	double length;
@@ -251,19 +253,32 @@ int main(){
 			Headflow->pkt=NULL;//一開始的flow中包含的封包設定為NULL
 			
 			while(Timeslot<Hyperperiod){
+				PacketQueue();	
+				BufferSet();
 
+				Node *Flownode=Head->nextnd;
+				while(Flownode!=NULL){	
+					Buffer=Flownode->NodeBuffer;
+					if(Timeslot % int(Flownode->eventinterval)==0)
+						FlowEDF();	//主要Scheduling
+
+					Flownode=Flownode->nextnd;
+				}
+				/*
 				if(Timeslot%Flowinterval==0){
-					PacketQueue();	
-					BufferSet();
+					
 
-					if(Rateproposal==2){
-						Rate_TO_Interval(DIFMinperiod);
-						Flowinterval=Connectioninterval;	
-					}
-
+						if(Rateproposal==2){
+							Rate_TO_Interval(DIFMinperiod);
+							Flowinterval=Connectioninterval;	
+						}
+					
+					Node *Flownode=Head->nextnd;
+					
+					Buffer=Flownode->NodeBuffer;
 					FlowEDF();	//主要Scheduling
 				}
-
+				*/
 				Timeslot++;
 			}
 			
@@ -342,7 +357,7 @@ int main(){
 	Flow EDF Scheduling
 ==========================*/
 void FlowEDF(){
-		
+	
 		/*---------------------------------------------
 				判斷Flow 是否為NULL
 				若有封包則進行傳輸
@@ -368,7 +383,7 @@ void FlowEDF(){
 				if(packet->exeload==0){
 
 					//cout<<" Packet:"<<packet->id;
-					Schdulefile<<" Packet:"<<packet->id;
+					Schdulefile<<" NP:"<<packet->node->id<<","<<packet->id;
 					
 					//判斷是否需要hop
 					packet->exehop--;
@@ -405,7 +420,7 @@ void FlowEDF(){
 
 			if(Headflow->pkt!=NULL){
 				//cout<<" Packet:"<<packet->id;
-				Schdulefile<<" Packet:"<<packet->id;
+				Schdulefile<<" NP:"<<packet->node->id<<","<<packet->id;
 				packet->State="Transmission";		//傳輸狀態
 			}
 			
@@ -581,7 +596,7 @@ void BufferSet(){
 		int intervalsize=0;
 
 		packet=Bufnode->pktQueue;
-		if(Buffer->pktsize!=0){
+		if(Bufnode->NodeBuffer->pktsize!=0){
 			while(packet->readyflag!=1)			
 				packet=packet->nodereadynextpkt;
 			if(packet==tmpbufferpkt)
@@ -840,6 +855,7 @@ void StructGEN(){
 			node=node->nextnd;
 			node->energy=0;
 			node->pktQueue=NULL;
+			node->NodeBuffer=new PacketBuffer;
 			packet=node->pkt;
 
 			node->id=ndid++;
