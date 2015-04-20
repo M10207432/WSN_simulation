@@ -27,6 +27,7 @@ struct PacketBuffer{
 };
 struct Node{
 	double coor_x,coor_y;//座標
+	double radius;
 	double distanceto_BS;//到Base station 距離
 	double energy;
 	double eventinterval;
@@ -131,6 +132,7 @@ Flow *Headflow=new Flow();
 int ReadyQ_overflag=0;
 
 stringstream stream;
+string str_coor_x,str_coor_y,str_radius;
 string strload,strperiod,strutilization,strhop;
 int nodenum=0;
 int pktnum=0;
@@ -216,6 +218,14 @@ int main(){
 				GEN的資料放進去
 			==========================*/
 			StructGEN();
+			
+			/*==========================
+					Topology
+			==========================*/
+
+			/*==========================
+				TDMA assignment
+			==========================*/
 
 			/*==========================
 				計算Connection interval
@@ -310,7 +320,7 @@ int main(){
 
 				Resultfile<<"Node"<<node->id<<endl;
 				Resultfile<<"E:"<<node->energy<<endl;
-				Resultfile<<"Connectioninterval:"<<Connectioninterval<<endl;
+				Resultfile<<"Connectioninterval:"<<node->eventinterval<<endl;
 				Resultfile<<"Total Event:"<<totalevent<<endl;
 
 				node=node->nextnd;
@@ -853,12 +863,19 @@ void StructGEN(){
 		GENfile>>str;
 		if(str=="Node"){
 			node=node->nextnd;
+
+			GENfile>>str_coor_x>>str_coor_y>>str_radius;
+			stream.clear();	stream<<str_coor_x;stream>>node->coor_x;		//coor_x
+			stream.clear();	stream<<str_coor_y;stream>>node->coor_y;		//coor_y
+			stream.clear();	stream<<str_radius;stream>>node->radius;		//radius
+			
 			node->energy=0;
 			node->pktQueue=NULL;
 			node->NodeBuffer=new PacketBuffer;
 			packet=node->pkt;
 
 			node->id=ndid++;
+
 		}
 		if(str=="Pkt"){
 			GENfile>>strload>>strperiod>>strutilization>>strhop;
