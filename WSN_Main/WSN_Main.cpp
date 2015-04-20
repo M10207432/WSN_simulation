@@ -34,13 +34,16 @@ struct Node{
 	int id;
 	short int ExTimeslot;
 	short int LatestTimeslot;
+	short int hop;		//range 1~3
 
 	string State;		//Wakeup、Sleep、Transmission & Idle
 	Packet* pkt;
 	Packet* pktQueue;
 	Node* nextnd;
 	Node* prend;
-	
+	Node* SendNode;//傳送節點
+	Node* RecvNode;//接收節點
+
 	PacketBuffer* NodeBuffer;
 };
 struct Packet{
@@ -94,6 +97,7 @@ void AssignRate();
 void NodeEnergy();
 double IntervalPower(int,int);
 void NodeState();				//改變個Node狀態
+void Topology();
 
 void DIF();						//Densest Interval First比較組，preemptionenable 要enable
 void TSB();						//Total Size Block
@@ -222,6 +226,7 @@ int main(){
 			/*==========================
 					Topology
 			==========================*/
+			Topology();
 
 			/*==========================
 				TDMA assignment
@@ -885,6 +890,7 @@ void StructGEN(){
 			stream.clear();	stream<<strutilization;	stream>>packet->utilization;	//Utilization
 			stream.clear();	stream<<strhop;	stream>>packet->hop;	//Hop
 			
+			node->hop=packet->hop;
 			packet->nodeid=node->id;
 			packet->period=packet->period;
 			packet->node=node;														//所屬的感測器
@@ -902,7 +908,37 @@ void StructGEN(){
 		}
 	}
 }
+/*===========================
+		WSN拓鋪
+===========================*/
+void Topology(){
+	Node *TNode=Head->nextnd;
+	double distance=100;
 
+	while(TNode!=NULL){
+		//--------------------------Level 1
+		if(TNode->hop==1){
+			TNode->SendNode=Head;
+		}
+
+		//--------------------------Level 2~
+		if(TNode->hop!=1){
+			Node *tmp_TNode=Head->nextnd;
+
+			while(tmp_TNode!=NULL){
+				if(tmp_TNode->hop==TNode->hop-1){
+					if(distance>sqrt(pow(TNode->coor_x-tmp_TNode->coor_x,2)+pow(TNode->coor_y-tmp_TNode->coor_y,2))){
+						distance=sqrt(pow(TNode->coor_x-tmp_TNode->coor_x,2)+pow(TNode->coor_y-tmp_TNode->coor_y,2));
+						TNode->SendNode=tmp_TNode;
+					}
+				}
+				tmp_TNode=tmp_TNode->nextnd;
+			}
+		}
+
+		TNode=TNode->nextnd;
+	}
+}
 /*===========================
 		比較組
 	找各個區間(interval)
