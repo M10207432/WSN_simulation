@@ -14,7 +14,9 @@ struct Node{
 	double coor_x,coor_y;//座標
 	double distanceto_BS;//到Base station 距離
 	double energy;
-	
+	double radus;
+	short int hop;		//range 1~3
+
 	struct Packet* pkt;
 	struct Node* nextnd;
 	struct Node* prend;
@@ -37,16 +39,21 @@ void create();
 /*=================================
 		Global value
 ==================================*/
-int pktnum=3;
-int nodenum=1;
-const double leastperiod=1000;
-const double largestperiod=10000;
-const double Hyperperiod=10000;
-const float MIN_Uti=1.0;
-const float MAX_Uti=2.0;
-const short int Set=50;
-string GENfile="..\\GENresult\\";//放到前一目錄下的GENresult目錄，產生txt檔
+short int Max_X_Axis = 100;
+short int Max_Y_Axis = 100;
+int Level1_Nodenum = 2;
+int Level2_Nodenum = 1;
+int pktnum=10;
+int nodenum=Level1_Nodenum+Level2_Nodenum;
 
+const double leastperiod=100;
+const double largestperiod=1000;
+const double Hyperperiod=1000;
+const float MIN_Uti=1.0;
+const float MAX_Uti=5.0;
+const short int Set=50;
+
+string GENfile="..\\GENresult\\";//放到前一目錄下的GENresult目錄，產生txt檔
 char Resultfile[]="..\\GENresult\\WSNGEN.txt";//放到前一目錄下的GENresult目錄，產生txt檔
 float Total_Uti=1.0;
 const double Max_pktuti=0.9;
@@ -91,8 +98,8 @@ int main(void){
 			/*==================================================
 							Create Node & Packet
 			==================================================*/
-	
 			create();
+
 			/*==================================================
 							寫入資訊 TXT
 			==================================================*/
@@ -106,19 +113,20 @@ int main(void){
 			while(tmpnode!=NULL){
 				tmppkt=tmpnode->pkt;
 
-				fp<<"Node"<<endl;
-		
+				fp<<"Node"<<" ";
+				fp<<tmpnode->coor_x<<" "<<tmpnode->coor_y<<" "<<tmpnode->radus<<endl;
+					
 				while(tmppkt!=NULL){
 					fp<<"Pkt"<<" ";
 					fp<<tmppkt->load<<" ";
 					fp<<tmppkt->period<<" ";
 					fp<<tmppkt->utilization<<" ";
-					fp<<1<<endl;
-					//fp<<tmppkt->hop<<endl;
+					fp<<tmpnode->hop<<endl;//fp<<tmppkt->hop<<endl;
 
 					cout<<tmppkt->load<<endl;
 					cout<<tmppkt->period<<endl;
 					tmpu=tmpu+tmppkt->utilization;
+
 					tmppkt=tmppkt->nextpkt;
 				}
 				packetid=1;
@@ -334,5 +342,46 @@ void create(){
 			}
 			node=node->nextnd;
 		}
+	}
+
+	/*==================================================
+					分配各節點位置
+	==================================================*/
+	node=HEAD->nextnd;
+	int tmplevel1=Level1_Nodenum;
+	int tmplevel2=Level2_Nodenum;
+	double ceter_x=Max_X_Axis/2;
+	double ceter_y=Max_Y_Axis/2;
+	double R=-1;
+
+	while(node!=NULL){
+		if(tmplevel1){
+			R=-1;
+			while(!(R<=Max_X_Axis/2 && R>0)){
+				node->coor_x=(rand()%Max_X_Axis/2)+Max_X_Axis/4; 
+				node->coor_y=(rand()%Max_Y_Axis/2)+Max_Y_Axis/4;
+				
+				R=sqrt(pow((ceter_x-node->coor_x),2)+pow((ceter_y-node->coor_y),2));
+			}
+			node->radus=R;
+			node->hop=1;
+
+			tmplevel1--;
+		}else if(tmplevel2){
+			R=-1;
+			while(!(R>Max_X_Axis/2)){
+				node->coor_x=(rand()%Max_X_Axis);
+				node->coor_y=(rand()%Max_Y_Axis);
+
+				R=sqrt(pow((ceter_x-node->coor_x),2)+pow((ceter_y-node->coor_y),2));
+			}
+			node->radus=R;
+			node->hop=2;
+
+			tmplevel2--;
+		}
+
+		cout<<"Node Address: "<<node->coor_x<<" "<<node->coor_y<<endl;
+		node=node->nextnd;
 	}
 }
