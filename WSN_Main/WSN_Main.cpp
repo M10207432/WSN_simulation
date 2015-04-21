@@ -35,6 +35,9 @@ struct Node{
 	short int ExTimeslot;
 	short int LatestTimeslot;
 	short int hop;		//range 1~3
+	short int edge;		//連接數目
+	bool order_flag;	//在coloring時，是否找過
+	short int color;	//顏色
 
 	string State;		//Wakeup、Sleep、Transmission & Idle
 	Packet* pkt;
@@ -42,7 +45,10 @@ struct Node{
 	Node* nextnd;
 	Node* prend;
 	Node* SendNode;//傳送節點
-	Node* RecvNode;//接收節點
+	Node* ChildNode;//子節點
+	Node* next_child;
+	Node* Conflict_Node;//相碰撞節點(Edge、Conflict)
+	Node* next_conflict;
 
 	PacketBuffer* NodeBuffer;
 };
@@ -80,6 +86,13 @@ struct Packet{
 
 	Packet* buffernextpkt;
 };
+struct Edge{
+	Node *n1;
+	Node *n2;
+
+	Edge *next_edge;
+	Edge *pre_edge;
+};
 struct DIFtable{
 	double load;
 	double length;
@@ -102,6 +115,7 @@ void Topology();
 void DIF();						//Densest Interval First比較組，preemptionenable 要enable
 void TSB();						//Total Size Block
 void Rate_TO_Interval(int);		//Nonpreemption 方法
+void NodeColoring();
 /*=================================
 		Global value
 ==================================*/
@@ -126,6 +140,9 @@ fstream Schdulefile;
 fstream Powerfile;
 fstream Resultfile;
 
+Edge *HeadEdge=new Edge;
+Edge *MainEdge=new Edge;
+Edge *ConflictEdge=new Edge;
 PacketBuffer* Buffer=new PacketBuffer;
 Node* Head=new Node;
 Packet* Headpacket=new Packet;
@@ -231,6 +248,7 @@ int main(){
 			/*==========================
 				TDMA assignment
 			==========================*/
+			NodeColoring();
 
 			/*==========================
 				計算Connection interval
@@ -791,6 +809,8 @@ void StructGEN(){
 	Head=NULL;
 	delete Headpacket;delete node;delete packet;delete Headflow;
 	Headpacket=NULL;node=NULL;packet=NULL;Headflow=NULL;
+	delete HeadEdge;delete MainEdge;delete ConflictEdge;
+	HeadEdge=NULL;MainEdge=NULL;ConflictEdge=NULL;
 
 	Head=new Node;
 	Headpacket=new Packet;
@@ -798,7 +818,9 @@ void StructGEN(){
 	packet=new Packet;
 	ReadyQ=new Packet;
 	Headflow=new Flow;
-	
+	HeadEdge=new Edge;
+	MainEdge=new Edge;
+	ConflictEdge=new Edge;
 	/*==========================
 			建立Link list
 		    Node & Packet
@@ -815,6 +837,8 @@ void StructGEN(){
 	stream<<str; stream>>Hyperperiod;
 
 	Head->nextnd=node;
+	Head->ChildNode=NULL;
+	Head->Conflict_Node=NULL;
 	for(int n=0;n<nodenum;n++){
 		/*-------------------------
 			packet(Linklist)
@@ -875,8 +899,13 @@ void StructGEN(){
 			stream.clear();	stream<<str_radius;stream>>node->radius;		//radius
 			
 			node->energy=0;
+			node->color=0;
+			node->edge=0;
 			node->pktQueue=NULL;
 			node->NodeBuffer=new PacketBuffer;
+			node->ChildNode=NULL;
+			node->Conflict_Node=NULL;
+			node->order_flag=false;
 			packet=node->pkt;
 
 			node->id=ndid++;
@@ -915,6 +944,10 @@ void Topology(){
 	Node *TNode=Head->nextnd;
 	double distance=100;
 
+	/*---------------------
+		找最短距離上的
+		相連接
+	---------------------*/
 	while(TNode!=NULL){
 		//--------------------------Level 1
 		if(TNode->hop==1){
@@ -938,7 +971,206 @@ void Topology(){
 
 		TNode=TNode->nextnd;
 	}
+
+	/*---------------------
+		Graph Conflict
+	---------------------*/
+	//=====================建立Edge
+	Edge *tmpedge;
+	HeadEdge=MainEdge;
+	node=Head->nextnd;
+	while(node!=NULL){
+		tmpedge=new Edge;
+		MainEdge->n1=node;
+		MainEdge->n2=node->SendNode;
+		
+		//建立Child node
+		if(node->SendNode->ChildNode==NULL){
+			node->SendNode->ChildNode=node;
+			node->SendNode->ChildNode->next_child=NULL;
+		}else{
+			Node* tmp_child=node->SendNode->ChildNode;
+			while(tmp_child->next_child!=NULL){
+				tmp_child=tmp_child->next_child;
+			}
+			tmp_child->next_child=node;
+			tmp_child=tmp_child->next_child;
+			tmp_child->next_child=NULL;
+		}
+
+		MainEdge->next_edge=tmpedge;
+		tmpedge->pre_edge=MainEdge;
+		MainEdge=tmpedge;
+
+		node=node->nextnd;
+	}
+	MainEdge->next_edge=NULL;
+
+	//=====================建立Conflict Edge
+	//ConflictEdge
+	Edge *MainConflictEdge=ConflictEdge;
+	Node *Childchild_node;
+	node=Head->nextnd;
+	while(node!=NULL){
+
+		//---------------------------------------------------SendNode
+		ConflictEdge->n1=node;
+		ConflictEdge->n2=node->SendNode;
+		tmpedge=new Edge;
+		ConflictEdge->next_edge=tmpedge;
+		tmpedge->pre_edge=ConflictEdge;
+		ConflictEdge=tmpedge;
+		//------SendNode's edge1(Send)
+		if(node->SendNode!=Head){
+			ConflictEdge->n1=node;
+			ConflictEdge->n2=node->SendNode->SendNode;
+			tmpedge=new Edge;
+			ConflictEdge->next_edge=tmpedge;
+			tmpedge->pre_edge=ConflictEdge;
+			ConflictEdge=tmpedge;
+		}
+		//------SendNode's edge2~(Child)
+		Childchild_node=node->SendNode->ChildNode;
+		if(Childchild_node==node)
+				Childchild_node=Childchild_node->next_child;
+		while(Childchild_node!=NULL){
+			ConflictEdge->n1=node;
+			ConflictEdge->n2=Childchild_node;
+			tmpedge=new Edge;
+			ConflictEdge->next_edge=tmpedge;
+			tmpedge->pre_edge=ConflictEdge;
+			ConflictEdge=tmpedge;
+
+			Childchild_node=Childchild_node->next_child;
+			if(Childchild_node==node)
+				Childchild_node=Childchild_node->next_child;
+		}
+
+		//---------------------------------------------------ChildNode
+		Node* Children=node->ChildNode;
+		while(Children!=NULL){
+			ConflictEdge->n1=node;
+			ConflictEdge->n2=Children;
+			tmpedge=new Edge;
+			ConflictEdge->next_edge=tmpedge;
+			tmpedge->pre_edge=ConflictEdge;
+			ConflictEdge=tmpedge;
+			//------ChildNode's edge2(Child)
+			if(Children!=NULL){
+				Childchild_node=Children->ChildNode;
+				while(Childchild_node!=NULL){
+					ConflictEdge->n1=node;
+					ConflictEdge->n2=Childchild_node;
+					tmpedge=new Edge;
+					ConflictEdge->next_edge=tmpedge;
+					tmpedge->pre_edge=ConflictEdge;
+					ConflictEdge=tmpedge;
+
+					Childchild_node=Childchild_node->next_child;
+				}
+			}
+
+			Children=Children->next_child;
+		}
+
+		node=node->nextnd;
+	}
+	ConflictEdge->pre_edge->next_edge=NULL;
+	ConflictEdge=MainConflictEdge;
 }
+
+/*========================
+	各自節點的顏色
+========================*/
+void NodeColoring(){
+	Edge *N_CEdge=ConflictEdge;
+	Edge *AssignEdge;
+	Node *AssignNode;
+	bool Assign_flag=false;
+	int colorid=1;
+
+	/*--------------------
+			edge計算
+	--------------------*/
+	node=N_CEdge->n1;
+	while(N_CEdge!=NULL){
+		
+		if(node==N_CEdge->n1){
+			node->edge=node->edge+1;
+		}else{
+			node=N_CEdge->n1;
+			node->edge=node->edge+1;
+		}
+			
+		N_CEdge=N_CEdge->next_edge;
+	}
+	
+	/*--------------------
+		先將color assign
+		給最大的edge
+	--------------------*/
+	while(!Assign_flag){
+		//--------------------------------找出最大edge的node，為AssignNode 
+		AssignNode=Head->nextnd;
+		node=Head->nextnd;
+		//先找出還未assign的node
+		while(node!=NULL){
+			if(node->order_flag==false){
+				AssignNode=node;
+				break;
+			}
+			node=node->nextnd;
+		}
+
+		node=Head->nextnd;
+		while(node!=NULL){
+			if(node->edge > AssignNode->edge && node->order_flag==false){
+				AssignNode=node;
+			}
+			node=node->nextnd;
+		}
+
+		//--------------------------------給AssignNode color
+		N_CEdge=ConflictEdge;
+		while(N_CEdge->n1 !=AssignNode)
+			N_CEdge=N_CEdge->next_edge;
+		AssignEdge=N_CEdge;
+	
+		colorid=1;
+		AssignNode->color=colorid;
+		node=Head->nextnd;
+		while(node!=NULL){
+			if(node->color == AssignNode->color){	//相同顏色的
+				N_CEdge=AssignEdge;
+				while(N_CEdge!=NULL){				
+					if(N_CEdge->n1==AssignNode && N_CEdge->n2==node ){//碰撞的
+						colorid++;
+					}
+					N_CEdge=N_CEdge->next_edge;
+				}
+			}
+			node=node->nextnd;
+		}
+		AssignNode->order_flag=true;
+		AssignNode->color=colorid;
+
+		//--------------------------------判斷是否全部以搜尋完畢
+		Assign_flag=true;
+		node=Head->nextnd;
+		while(node!=NULL){
+			if(node->color==0)
+				Assign_flag=false;
+			node=node->nextnd;
+		}
+	}
+
+}
+
+/*========================
+	TDMA Schedule
+========================*/
+
+
 /*===========================
 		比較組
 	找各個區間(interval)
