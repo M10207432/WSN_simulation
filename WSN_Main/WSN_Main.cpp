@@ -35,6 +35,7 @@ struct Node{
 	double radius;
 	double distanceto_BS;//到Base station 距離
 	double energy;
+	double avgenergy;
 	double eventinterval;
 	short int ExTimeslot;
 	short int LatestTimeslot;
@@ -119,6 +120,7 @@ double IntervalPower(int,int);
 void NodeState();				//改變個Node狀態
 void Topology();
 
+void Event();					
 void DIF();						//Densest Interval First比較組，preemptionenable 要enable
 void TSB();						//Total Size Block
 void Rate_TO_Interval(int);		//Nonpreemption 方法
@@ -134,7 +136,7 @@ string GENPath="..\\GENresult\\";
 string SchedulePath="..\\WSNresult\\TSBResult_ver2\\";
 string PowerPath="..\\WSNresult\\TSBResult_ver2\\";
 string ResultPath="..\\WSNresult\\TSBResult_ver2\\";
-short int Rateproposal=1;				//AssignRate()中的方法編號 0=>Event, 1=>TSB, 2=>DIF, 
+short int Rateproposal=0;				//AssignRate()中的方法編號 0=>Event, 1=>TSB, 2=>DIF, 
 bool preemptionenable=true;			//設定可否preemption
 
 int Flowinterval=0;					//觸發進入flow的conneciton interval
@@ -153,8 +155,10 @@ Edge *MainEdge=new Edge;
 Edge *ConflictEdge=new Edge;
 TDMATable *TDMA_Tbl=new TDMATable;
 PacketBuffer* Buffer=new PacketBuffer;
+Node* SetHead=new Node;
 Node* Head=new Node;
 Packet* Headpacket=new Packet;
+Node *SetNode=new Node;
 Node* node=new Node;
 Packet* packet=new Packet;
 Packet *ReadyQ=new Packet();
@@ -190,7 +194,11 @@ double parmb=24.4058498;
 
 int main(){
 
+	cout<<"Type Rateproposal(0->Event, 1->TSB):";
+	cin>>Rateproposal;
+
 	for(float U=MIN_Uti; U<=MAX_Uti; U++){
+		delete SetNode;SetNode=NULL;
 		Meetcount=0;
 		AverageE=0;
 		totalevent=0;
@@ -266,7 +274,7 @@ int main(){
 			switch (Rateproposal)
 			{
 			case 0:
-				Connectioninterval=1;
+				Event();
 				break;
 			case 1:
 				TSB();
@@ -307,7 +315,7 @@ int main(){
 
 					Buffer=Flownode->NodeBuffer;
 
-					if(Timeslot % int(Flownode->eventinterval)==0)
+					if(Timeslot % int(Flownode->eventinterval)==0 && Buffer->pkt!=NULL)
 						Flownode->arrival_flag=1;
 
 					Flownode=Flownode->nextnd;
@@ -323,7 +331,6 @@ int main(){
 					FlowTable=FlowTable->next_tbl;
 				}
 
-
 				FlowTable=TDMA_Tbl;
 				while(FlowTable!=NULL){
 					
@@ -332,9 +339,8 @@ int main(){
 						
 						Edge *tmp_ConflictEdge=ConflictEdge;
 						while(tmp_ConflictEdge!=NULL){
-							if(tmp_ConflictEdge->n1==FlowTable->n1){
-								if(tmp_ConflictEdge->n2->arrival_flag==-1)
-									Flow_flag=false;
+							if(tmp_ConflictEdge->n1==FlowTable->n1 && tmp_ConflictEdge->n2->arrival_flag==-1){ 
+								Flow_flag=false;
 							}
 							tmp_ConflictEdge=tmp_ConflictEdge->next_edge;
 						}
@@ -343,9 +349,7 @@ int main(){
 						if(Flow_flag){
 							Buffer=Flownode->NodeBuffer;
 							
-							cout<<"Node:"<<Flownode->id<<" ";
 							FlowEDF();
-							cout<<endl;
 
 							Flownode->arrival_flag=-1;
 						}
@@ -413,6 +417,16 @@ int main(){
 			if(Meetflag==true){
 				Resultfile<<"Meet Deadline:MEET"<<endl;
 				cout<<"Meet Deadline:MEET"<<endl;
+				
+				node=Head->nextnd;
+				SetNode=SetHead->nextnd;
+				while(node!=NULL){
+					SetNode->avgenergy=SetNode->avgenergy+node->energy;
+					
+					SetNode=SetNode->nextnd;
+					node=node->nextnd;
+				}
+				SetNode=SetHead->nextnd;
 
 				AverageE=AverageE+totalenergy;
 				Meetcount++;
@@ -430,6 +444,11 @@ int main(){
 		cout<<"Meet="<<Meetcount<<endl;
 		cout<<"Miss="<<Set-Meetcount<<endl;
 		cout<<"MeetRatio="<<Meetcount/Set<<endl;
+		SetNode=SetHead->nextnd;
+		while(SetNode!=NULL){
+			cout<<"Node"<<SetNode->id<<"="<<SetNode->avgenergy/Meetcount<<endl;
+			SetNode=SetNode->nextnd;
+		}
 		cout<<"AverageEnergy="<<AverageE/Meetcount<<endl;
 		cout<<"=============================================="<<endl;
 
@@ -461,7 +480,7 @@ void FlowEDF(){
 		if(Buffer->pkt!=NULL){
 			totalevent++;
 
-			cout<<"Time slot:"<<Timeslot;
+			cout<<"Time slot:"<<Timeslot<<" Node:"<<Buffer->pkt->node->id;
 			Schdulefile<<"Time slot:"<<Timeslot;
 			//=============================================執行傳輸
 			packet=Buffer->pkt;
@@ -489,7 +508,8 @@ void FlowEDF(){
 					}else{
 						//判斷是否miss deadline
 						if((Timeslot)>=packet->deadline){
-							cout<<"Time slot:"<<Timeslot<<"  PKT"<<packet->id<<" Miss deadline"<<endl;
+							
+							cout<<"(PKT"<<packet->id<<" Miss deadline"<<" Deadline "<<packet->deadline<<")";
 							Schdulefile<<"(PKT"<<packet->id<<" Miss deadline"<<" Deadline "<<packet->deadline<<")";
 
 							Meetflag=false;
@@ -519,7 +539,7 @@ void FlowEDF(){
 				packet->State="Transmission";		//傳輸狀態
 			}
 			
-			//cout<<endl;
+			cout<<endl;
 			Schdulefile<<endl;
 			/*---------------------------
 				傳輸完立即做
@@ -999,6 +1019,33 @@ void StructGEN(){
 			packet=packet->nextpkt;
 		}
 	}
+	
+	if(SetNode==NULL){
+		int Setid=1;
+		Node *tmpSetNode;
+		Node *MainSetNode;
+		SetNode=new Node;
+		MainSetNode=SetNode;
+
+		node=Head->nextnd;
+		while(node!=NULL){
+			tmpSetNode=new Node;
+			SetNode->nextnd=tmpSetNode;
+			tmpSetNode->prend=SetNode;
+
+			SetNode->id=Setid++;
+			SetNode->avgenergy=0;
+
+			SetNode=tmpSetNode;
+			
+			node=node->nextnd;
+		}
+		SetNode=SetNode->prend;
+		SetNode->nextnd=NULL;
+
+		SetNode=MainSetNode;
+		SetHead->nextnd=SetNode;
+	}
 }
 /*===========================
 		WSN拓鋪
@@ -1448,6 +1495,14 @@ void DIF(){
 	}
 	
 	delete []DIFpacket;
+}
+
+void Event(){
+	node=Head->nextnd;
+	while(node!=NULL){
+		node->eventinterval=1;
+		node=node->nextnd;
+	}
 }
 /*==============================================
 (小於兩倍Minperiod的pkt size)	->Minsize
