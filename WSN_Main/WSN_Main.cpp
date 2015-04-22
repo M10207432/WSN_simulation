@@ -26,29 +26,29 @@ struct PacketBuffer{
 	Packet* pkt;
 };
 struct Node{
+	int id;
+	short int hop;		//range 1~3
+	short int color;	//顏色
+	
+	Node* SendNode;//傳送節點
 	double coor_x,coor_y;//座標
 	double radius;
 	double distanceto_BS;//到Base station 距離
 	double energy;
 	double eventinterval;
-	int id;
 	short int ExTimeslot;
 	short int LatestTimeslot;
-	short int hop;		//range 1~3
 	short int edge;		//連接數目
 	bool order_flag;	//在coloring時，是否找過
-	short int color;	//顏色
+	short int arrival_flag;//0->Interval並未到、1->已arrival、-1->剛剛傳輸完畢
 
 	string State;		//Wakeup、Sleep、Transmission & Idle
 	Packet* pkt;
 	Packet* pktQueue;
 	Node* nextnd;
 	Node* prend;
-	Node* SendNode;//傳送節點
 	Node* ChildNode;//子節點
 	Node* next_child;
-	Node* Conflict_Node;//相碰撞節點(Edge、Conflict)
-	Node* next_conflict;
 
 	PacketBuffer* NodeBuffer;
 };
@@ -93,6 +93,13 @@ struct Edge{
 	Edge *next_edge;
 	Edge *pre_edge;
 };
+struct TDMATable{
+	int slot;
+	Node *n1;
+	
+	TDMATable * next_tbl;
+	TDMATable * pre_tbl;
+};
 struct DIFtable{
 	double load;
 	double length;
@@ -116,6 +123,7 @@ void DIF();						//Densest Interval First比較組，preemptionenable 要enable
 void TSB();						//Total Size Block
 void Rate_TO_Interval(int);		//Nonpreemption 方法
 void NodeColoring();
+void TDMA_Assignment();
 /*=================================
 		Global value
 ==================================*/
@@ -143,6 +151,7 @@ fstream Resultfile;
 Edge *HeadEdge=new Edge;
 Edge *MainEdge=new Edge;
 Edge *ConflictEdge=new Edge;
+TDMATable *TDMA_Tbl=new TDMATable;
 PacketBuffer* Buffer=new PacketBuffer;
 Node* Head=new Node;
 Packet* Headpacket=new Packet;
@@ -249,6 +258,7 @@ int main(){
 				TDMA assignment
 			==========================*/
 			NodeColoring();
+			TDMA_Assignment();
 
 			/*==========================
 				計算Connection interval
@@ -283,33 +293,85 @@ int main(){
 			/*==========================
 					EDF scheduling
 			==========================*/
+			int FlowSlot=0;
+			bool Flow_flag=false;
 			Headflow->pkt=NULL;//一開始的flow中包含的封包設定為NULL
 			
 			while(Timeslot<Hyperperiod){
 				PacketQueue();	
 				BufferSet();
 
+				//-------------------------------找出connection interval抵達的node
 				Node *Flownode=Head->nextnd;
 				while(Flownode!=NULL){	
+
 					Buffer=Flownode->NodeBuffer;
+
+					if(Timeslot % int(Flownode->eventinterval)==0)
+						Flownode->arrival_flag=1;
+
+					Flownode=Flownode->nextnd;
+				}
+
+				//-------------------------------找出目前因該傳輸的TDMA slot id
+				TDMATable *FlowTable=TDMA_Tbl;
+				while(FlowTable!=NULL){
+					if(FlowTable->n1->arrival_flag==1){
+						FlowSlot=FlowTable->slot;
+						break;
+					}
+					FlowTable=FlowTable->next_tbl;
+				}
+
+
+				FlowTable=TDMA_Tbl;
+				while(FlowTable!=NULL){
+					
+					Flow_flag=true;
+					if(FlowTable->n1->arrival_flag==1 && FlowTable->slot==FlowSlot){//找已經arrival的node 且 在此FlowSlot上
+						
+						Edge *tmp_ConflictEdge=ConflictEdge;
+						while(tmp_ConflictEdge!=NULL){
+							if(tmp_ConflictEdge->n1==FlowTable->n1){
+								if(tmp_ConflictEdge->n2->arrival_flag==-1)
+									Flow_flag=false;
+							}
+							tmp_ConflictEdge=tmp_ConflictEdge->next_edge;
+						}
+
+						Flownode=FlowTable->n1;
+						if(Flow_flag){
+							Buffer=Flownode->NodeBuffer;
+							
+							cout<<"Node:"<<Flownode->id<<" ";
+							FlowEDF();
+							cout<<endl;
+
+							Flownode->arrival_flag=-1;
+						}
+
+					}
+					FlowTable=FlowTable->next_tbl;
+				}
+
+				//-----------------------------------將剛做完的flag改為傳輸完畢
+				Flownode=Head->nextnd;
+				while(Flownode!=NULL){
+					if(Flownode->arrival_flag==-1)
+						Flownode->arrival_flag=0;
+					Flownode=Flownode->nextnd;
+				}
+
+				/*
+				Node *Flownode=Head->nextnd;
+				while(Flownode!=NULL){	
+
+					Buffer=Flownode->NodeBuffer;
+
 					if(Timeslot % int(Flownode->eventinterval)==0)
 						FlowEDF();	//主要Scheduling
 
 					Flownode=Flownode->nextnd;
-				}
-				/*
-				if(Timeslot%Flowinterval==0){
-					
-
-						if(Rateproposal==2){
-							Rate_TO_Interval(DIFMinperiod);
-							Flowinterval=Connectioninterval;	
-						}
-					
-					Node *Flownode=Head->nextnd;
-					
-					Buffer=Flownode->NodeBuffer;
-					FlowEDF();	//主要Scheduling
 				}
 				*/
 				Timeslot++;
@@ -399,7 +461,7 @@ void FlowEDF(){
 		if(Buffer->pkt!=NULL){
 			totalevent++;
 
-			//cout<<"Time slot:"<<Timeslot;
+			cout<<"Time slot:"<<Timeslot;
 			Schdulefile<<"Time slot:"<<Timeslot;
 			//=============================================執行傳輸
 			packet=Buffer->pkt;
@@ -415,7 +477,7 @@ void FlowEDF(){
 
 				if(packet->exeload==0){
 
-					//cout<<" Packet:"<<packet->id;
+					cout<<" Packet:"<<packet->id;
 					Schdulefile<<" NP:"<<packet->node->id<<","<<packet->id;
 					
 					//判斷是否需要hop
@@ -427,7 +489,7 @@ void FlowEDF(){
 					}else{
 						//判斷是否miss deadline
 						if((Timeslot)>=packet->deadline){
-							//cout<<"Time slot:"<<Timeslot<<"  PKT"<<packet->id<<" Miss deadline"<<endl;
+							cout<<"Time slot:"<<Timeslot<<"  PKT"<<packet->id<<" Miss deadline"<<endl;
 							Schdulefile<<"(PKT"<<packet->id<<" Miss deadline"<<" Deadline "<<packet->deadline<<")";
 
 							Meetflag=false;
@@ -811,6 +873,7 @@ void StructGEN(){
 	Headpacket=NULL;node=NULL;packet=NULL;Headflow=NULL;
 	delete HeadEdge;delete MainEdge;delete ConflictEdge;
 	HeadEdge=NULL;MainEdge=NULL;ConflictEdge=NULL;
+	delete TDMA_Tbl;TDMA_Tbl=NULL;
 
 	Head=new Node;
 	Headpacket=new Packet;
@@ -821,6 +884,7 @@ void StructGEN(){
 	HeadEdge=new Edge;
 	MainEdge=new Edge;
 	ConflictEdge=new Edge;
+	TDMA_Tbl=new TDMATable;
 	/*==========================
 			建立Link list
 		    Node & Packet
@@ -838,7 +902,6 @@ void StructGEN(){
 
 	Head->nextnd=node;
 	Head->ChildNode=NULL;
-	Head->Conflict_Node=NULL;
 	for(int n=0;n<nodenum;n++){
 		/*-------------------------
 			packet(Linklist)
@@ -904,8 +967,8 @@ void StructGEN(){
 			node->pktQueue=NULL;
 			node->NodeBuffer=new PacketBuffer;
 			node->ChildNode=NULL;
-			node->Conflict_Node=NULL;
 			node->order_flag=false;
+			node->arrival_flag=0;
 			packet=node->pkt;
 
 			node->id=ndid++;
@@ -1090,7 +1153,7 @@ void NodeColoring(){
 	int colorid=1;
 
 	/*--------------------
-			edge計算
+		edge計算 & Init
 	--------------------*/
 	node=N_CEdge->n1;
 	while(N_CEdge!=NULL){
@@ -1105,6 +1168,13 @@ void NodeColoring(){
 		N_CEdge=N_CEdge->next_edge;
 	}
 	
+	node=Head->nextnd;
+	while(node!=NULL){
+		node->order_flag=false;
+		node->color=0;
+		node=node->nextnd;
+	}
+
 	/*--------------------
 		先將color assign
 		給最大的edge
@@ -1163,13 +1233,97 @@ void NodeColoring(){
 			node=node->nextnd;
 		}
 	}
-
 }
 
 /*========================
 	TDMA Schedule
 ========================*/
+void TDMA_Assignment(){
+	delete TDMA_Tbl;TDMA_Tbl=NULL;
+	TDMA_Tbl=new TDMATable;
+	node=Head->nextnd;
+	int colorid=1;		//等同於slot time
+	TDMATable *tmp_tbl;
+	TDMATable *MainTable=TDMA_Tbl;
+	Edge *N_CEdge=ConflictEdge;
+	int Maxcolor=0;
 
+	//----------------------------------------先找出最大color id
+	node=Head->nextnd;
+	while(node!=NULL){
+		if(node->color > Maxcolor)
+			Maxcolor=node->color;
+		node=node->nextnd;
+	}
+
+	while(Maxcolor>=colorid){
+
+		node=Head->nextnd;
+		//-----------------------------------先分配相同顏色的node 在同一slot上
+		while(node!=NULL){
+			if(node->color == colorid){
+				//assign pair{slot,node}
+				TDMA_Tbl->slot=colorid;	
+				TDMA_Tbl->n1=node;		
+
+				tmp_tbl=new TDMATable;
+				TDMA_Tbl->next_tbl=tmp_tbl;
+				tmp_tbl->pre_tbl=TDMA_Tbl;
+				TDMA_Tbl=tmp_tbl;
+			}
+
+			node=node->nextnd;
+		}
+	
+		//-----------------------------------在此slot上的node，判斷與其不碰撞的node為何
+		N_CEdge=ConflictEdge;
+		node=Head->nextnd;
+		while(node!=NULL){
+			if(node->color==colorid){ //相同顏色情況下
+				Node *tmpnode=Head->nextnd;
+				while(tmpnode!=NULL){ 
+
+					if(node->color != tmpnode->color){ //此colorid的node與其他不同顏色node
+					
+						bool conflict_flag=false;
+						N_CEdge=ConflictEdge;
+						while(N_CEdge!=NULL){
+							if(N_CEdge->n1==node && N_CEdge->n2==tmpnode){
+								conflict_flag=true;	
+							}
+							N_CEdge=N_CEdge->next_edge;
+						}
+
+						//判斷node 與 tmpnode是否有碰撞
+						if(!conflict_flag){
+							//assign pair{slot,node}
+							TDMA_Tbl->slot=colorid;	
+							TDMA_Tbl->n1=node;		
+
+							tmp_tbl=new TDMATable;
+							TDMA_Tbl->next_tbl=tmp_tbl;
+							tmp_tbl->pre_tbl=TDMA_Tbl;
+							TDMA_Tbl=tmp_tbl;
+						}
+					}
+
+					tmpnode=tmpnode->nextnd;
+				}
+			}
+
+			node=node->nextnd;
+		}
+
+		colorid++;
+		node=Head->nextnd;
+	}
+
+	TDMA_Tbl=TDMA_Tbl->pre_tbl;
+	TDMA_Tbl->next_tbl=NULL;
+
+	TDMA_Tbl=MainTable;
+
+}
 
 /*===========================
 		比較組
@@ -1318,6 +1472,7 @@ void TSB(){
 		Node *TSBnode=Head->nextnd;
 		while(TSBnode!=NULL){
 			Packet *TSBpkt=TSBnode->pktQueue;
+			int nodehop=TSBnode->hop;
 			double Totalsize=0;
 			double PacketSize=0;
 			double Tslot=0;
@@ -1335,7 +1490,7 @@ void TSB(){
 				//算出所需buffer量
 				TSBpkt=TSBnode->pktQueue;
 				while(TSBpkt->period <= Tslot){
-					Totalsize=Totalsize+(ceil(TSBpkt->load/payload)*ceil(Tslot/TSBpkt->period));	
+					Totalsize=Totalsize+(ceil(TSBpkt->load/payload)*ceil(Tslot/TSBpkt->period)*nodehop);	
 					TSBpkt=TSBpkt->nodereadynextpkt;
 					if(TSBpkt==NULL)
 						break;
