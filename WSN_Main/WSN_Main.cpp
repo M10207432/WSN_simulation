@@ -513,10 +513,10 @@ void FlowEDF(){
 								
 				packet->exeload--;
 				Buffer->load--;
-				
+				packet->node->State="Transmission";
 				packet->State="Transmission";		//傳輸狀態
 
-				NodeState();	//改變Node狀態
+				//NodeState();	//改變Node狀態
 
 				if(packet->exeload==0){
 
@@ -563,6 +563,7 @@ void FlowEDF(){
 				//cout<<" Packet:"<<packet->id;
 				Schdulefile<<" NP:"<<packet->node->id<<","<<packet->id;
 				packet->State="Transmission";		//傳輸狀態
+				packet->node->State="Transmission";		//傳輸狀態
 			}
 			
 			cout<<endl;
@@ -574,7 +575,7 @@ void FlowEDF(){
 			NodeEnergy();	//計算個感測器Energy
 
 		}else{
-			NodeState();	//改變Node狀態
+			//NodeState();	//改變Node狀態
 			NodeEnergy();
 
 			//cout<<"Time slot:"<<Timeslot<<" IDLE"<<endl;
@@ -852,7 +853,7 @@ void NodeEnergy(){
 
 
 
-
+			Enode->State="Idle";
 
 			if(Enode->id==8){
 				int y=1;
