@@ -50,6 +50,8 @@ struct Node{
 	Node* prend;
 	Node* ChildNode;//子節點
 	Node* next_child;
+	Node* RecvNode;//接收節點
+	Node* next_recv;
 
 	PacketBuffer* NodeBuffer;
 };
@@ -136,7 +138,7 @@ string GENPath="..\\GENresult\\";
 string SchedulePath="..\\WSNresult\\TSBResult_ver2\\";
 string PowerPath="..\\WSNresult\\TSBResult_ver2\\";
 string ResultPath="..\\WSNresult\\TSBResult_ver2\\";
-short int Rateproposal=0;				//AssignRate()中的方法編號 0=>Event, 1=>TSB, 2=>DIF, 
+short int Rateproposal=1;				//AssignRate()中的方法編號 0=>Event, 1=>TSB, 2=>DIF, 
 bool preemptionenable=true;			//設定可否preemption
 
 int Flowinterval=0;					//觸發進入flow的conneciton interval
@@ -184,8 +186,8 @@ bool Meetflag=true;					//看是否meet deadline
 ====================*/
 double Vcc=3.3;			//BLE 驅動電壓
 double Isleep=0.003;	//Sleep 電流 
-double Ie=0.07679763;		//傳輸峰值 電流  0.002
-double Te=0.0002768;		//傳輸時間1.25ms
+double Ie=0.07679763;		//傳輸峰值 電流
+double Te=0.0002768;		//傳輸時間
 double K=1;				//Rate power常數
 double unit=0.01;		//時間單位為10ms
 double TotalEnergy=0;
@@ -287,8 +289,6 @@ int main(){
 				Connectioninterval=1;
 				break;
 			}
-
-			Flowinterval=Connectioninterval;
 			
 			//放置傳輸載量
 			packet=Head->nextnd->pkt;
@@ -315,13 +315,15 @@ int main(){
 
 					Buffer=Flownode->NodeBuffer;
 
-					if(Timeslot % int(Flownode->eventinterval)==0 && Buffer->pkt!=NULL)
+					if(Timeslot % int(Flownode->eventinterval)==0 && Buffer->pkt!=NULL) //若有Recvnode，也需考量其interval
 						Flownode->arrival_flag=1;
 
 					Flownode=Flownode->nextnd;
 				}
 
-				//-------------------------------找出目前因該傳輸的TDMA slot id
+				//-------------------------------找出目前因該傳輸的TDMA slot id (FlowSlot)，
+				//都會以最早的time slot為主，並未有依序情況(若要此slot傳完換下一slot為主需要加入判斷)
+				//即為需加入要比 前一FlowSlot 往後Slot
 				TDMATable *FlowTable=TDMA_Tbl;
 				while(FlowTable!=NULL){
 					if(FlowTable->n1->arrival_flag==1){
@@ -332,11 +334,13 @@ int main(){
 				}
 
 				FlowTable=TDMA_Tbl;
+
 				while(FlowTable!=NULL){
 					
 					Flow_flag=true;
 					if(FlowTable->n1->arrival_flag==1 && FlowTable->slot==FlowSlot){//找已經arrival的node 且 在此FlowSlot上
 						
+						//此FlowTable上的n1並未有剛剛傳輸完畢的node碰撞 (ConflictEdge->n2的arrival_flag可為1 但不可為-1)
 						Edge *tmp_ConflictEdge=ConflictEdge;
 						while(tmp_ConflictEdge!=NULL){
 							if(tmp_ConflictEdge->n1==FlowTable->n1 && tmp_ConflictEdge->n2->arrival_flag==-1){ 
@@ -345,6 +349,7 @@ int main(){
 							tmp_ConflictEdge=tmp_ConflictEdge->next_edge;
 						}
 
+						//用Flow_flag判斷FlowTable->n1是否可傳輸
 						Flownode=FlowTable->n1;
 						if(Flow_flag){
 							Buffer=Flownode->NodeBuffer;
@@ -407,10 +412,23 @@ int main(){
 				}
 				AvgRate=AvgRate/Pktnum;
 
-				Resultfile<<"Node"<<node->id<<endl;
-				Resultfile<<"E:"<<node->energy<<endl;
-				Resultfile<<"Connectioninterval:"<<node->eventinterval<<endl;
-				Resultfile<<"Total Event:"<<totalevent<<endl;
+				//Node id:energy connectioninterval,color conflictnode...,coor_x coor_y SendNode 
+				Resultfile<<"Node"<<node->id<<":";
+				Resultfile<<node->energy<<" "<<node->eventinterval<<",";
+				
+				Resultfile<<node->color<<" ";
+				Edge *printedge=ConflictEdge;
+				while(printedge!=NULL){
+					if(printedge->n1->id==node->id)
+						Resultfile<<printedge->n2->id<<" ";
+					printedge=printedge->next_edge;
+				}
+				Resultfile<<",";
+
+				Resultfile<<node->coor_x<<" "<<node->coor_y<<" ";
+				Resultfile<<node->SendNode->id<<endl;
+
+				//Resultfile<<"Total Event:"<<totalevent<<endl;
 
 				node=node->nextnd;
 			}
@@ -456,6 +474,11 @@ int main(){
 		Resultfile<<"Meet="<<Meetcount<<endl;
 		Resultfile<<"Miss="<<Set-Meetcount<<endl;
 		Resultfile<<"MeetRatio="<<Meetcount/Set<<endl;
+		SetNode=SetHead->nextnd;
+		while(SetNode!=NULL){
+			Resultfile<<"Node"<<SetNode->id<<"="<<SetNode->avgenergy/Meetcount<<endl;
+			SetNode=SetNode->nextnd;
+		}
 		Resultfile<<"AverageEnergy="<<AverageE/Meetcount<<endl;
 
 		GENfile.close();
@@ -490,6 +513,7 @@ void FlowEDF(){
 								
 				packet->exeload--;
 				Buffer->load--;
+				
 				packet->State="Transmission";		//傳輸狀態
 
 				NodeState();	//改變Node狀態
@@ -503,6 +527,8 @@ void FlowEDF(){
 					packet->exehop--;
 					if(packet->exehop>0)
 					{
+						//填入SendNode
+
 						packet->exeload=packet->load;
 						Headflow->pkt=packet;
 					}else{
@@ -555,8 +581,6 @@ void FlowEDF(){
 			Schdulefile<<"Time slot:"<<Timeslot<<" IDLE"<<endl;
 			
 		}
-		//下一個時間點
-		//Timeslot++;
 }
 /*==========================================
 			Arrange Queue
@@ -720,7 +744,7 @@ void BufferSet(){
 
 		while(Bufnode->NodeBuffer->pktsize<Maxbuffersize && packet!=NULL){
 
-			if(packet->readyflag!=1){			//尚未ready
+			if(packet->readyflag!=1){			//尚未ready，直接換下一packet
 				packet=packet->nodereadynextpkt;
 			}else{
 			
@@ -777,6 +801,10 @@ void BufferSet(){
 		Bufnode=Bufnode->nextnd;
 	}
 
+	//需考量RecvNode->NodeBuffer
+	//...
+
+
 }
 /*==========================================
 		分別計算各個node上的Power
@@ -811,10 +839,24 @@ void NodeEnergy(){
 		if(Enode->State=="Transmission"){
 			double P=0;
 
+			//
+			if(Enode->id==8){
+				int y=0;
+			}
+
+
 			P=IntervalPower(Pktsize,Enode->LatestTimeslot-Enode->ExTimeslot);
 			Enode->energy=Enode->energy+P;
 			//cout<<"Interval:"<<(Enode->LatestTimeslot-Enode->ExTimeslot)<<" E:"<<Enode->energy<<endl;
 			Enode->ExTimeslot=Enode->LatestTimeslot;//紀錄此次發送時間
+
+
+
+
+
+			if(Enode->id==8){
+				int y=1;
+			}
 		}
 		//==========================Idle 狀態
 		if(Enode->State=="Idle"){
@@ -1067,7 +1109,7 @@ void Topology(){
 		//--------------------------Level 2~
 		if(TNode->hop!=1){
 			Node *tmp_TNode=Head->nextnd;
-
+			distance=100;
 			while(tmp_TNode!=NULL){
 				if(tmp_TNode->hop==TNode->hop-1){
 					if(distance>sqrt(pow(TNode->coor_x-tmp_TNode->coor_x,2)+pow(TNode->coor_y-tmp_TNode->coor_y,2))){
@@ -1251,20 +1293,27 @@ void NodeColoring(){
 		N_CEdge=ConflictEdge;
 		while(N_CEdge->n1 !=AssignNode)
 			N_CEdge=N_CEdge->next_edge;
-		AssignEdge=N_CEdge;
+		AssignEdge=N_CEdge;				//AssignNode在ConflictEdge中的第一個node
 	
 		colorid=1;
 		AssignNode->color=colorid;
 		node=Head->nextnd;
+		bool research_flag=false;
 		while(node!=NULL){
-			if(node->color == AssignNode->color){	//相同顏色的
-				N_CEdge=AssignEdge;
+
+			if(node->color == colorid){	//相同顏色的
+				N_CEdge=AssignEdge;				
 				while(N_CEdge!=NULL){				
 					if(N_CEdge->n1==AssignNode && N_CEdge->n2==node ){//碰撞的
 						colorid++;
+						research_flag=true;	//若有相同顏色且碰撞的node，則需要重新全部node比較一次
 					}
 					N_CEdge=N_CEdge->next_edge;
 				}
+			}
+			if(research_flag){
+				node=Head;
+				research_flag=false;
 			}
 			node=node->nextnd;
 		}
