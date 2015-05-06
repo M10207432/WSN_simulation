@@ -79,6 +79,7 @@ void TSB(){
 			int nodehop=TSBnode->hop;
 			double Totalsize=0;
 			double PacketSize=0;
+			double totalevent=0;
 			double Tslot=0;
 			bool doneflag=false;
 
@@ -94,12 +95,19 @@ void TSB(){
 				//算出所需buffer量
 				TSBpkt=TSBnode->pktQueue;
 				while(TSBpkt->period <= Tslot){
-					Totalsize=Totalsize+(ceil(TSBpkt->load/payload)*ceil(Tslot/TSBpkt->period)*nodehop);	
+					Totalsize=Totalsize+(ceil(TSBpkt->load/payload)*ceil(Tslot/TSBpkt->period));	
 					TSBpkt=TSBpkt->nodereadynextpkt;
 					if(TSBpkt==NULL)
 						break;
 				}
 
+				//計算需要的event數量，反推所需buffer量 (解決Hop不連續上的問題)
+				if(nodehop>1){
+					totalevent=ceil(Totalsize/payload);
+					Totalsize=Totalsize*nodehop*Maxbuffersize;
+				}
+
+				//計算Connection interval
 				PacketSize=floor(Tslot/Tc)*double(Maxbuffersize);
 				while(Totalsize > PacketSize){
 					Tc--;
