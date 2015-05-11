@@ -41,8 +41,8 @@ void create();
 ==================================*/
 short int Max_X_Axis = 100;
 short int Max_Y_Axis = 100;
-int Level1_Nodenum = 2;
-int Level2_Nodenum = 1;
+int Level1_Nodenum = 5;
+int Level2_Nodenum = 5;
 int pktnum=10;
 int nodenum=Level1_Nodenum+Level2_Nodenum;
 
@@ -51,7 +51,7 @@ const double largestperiod=1000;
 const double Hyperperiod=1000;
 const float MIN_Uti=1.0;
 const float MAX_Uti=5.0;
-const short int Set=50;
+const short int Set=100;
 
 string GENfile="..\\GENresult\\";//放到前一目錄下的GENresult目錄，產生txt檔
 char Resultfile[]="..\\GENresult\\WSNGEN.txt";//放到前一目錄下的GENresult目錄，產生txt檔
@@ -136,8 +136,9 @@ int main(void){
 			}
 			cout<<"Totaluti:"<<tmp_totaluti<<endl;
 			fp<<"Totaluti:"<<tmp_totaluti<<endl;
-			cout<<"=========="<<endl;
+			cout<<"=========="<<setcount<<endl;
 			fp<<"=========="<<endl;
+			fp<<"=========="<<setcount<<endl;
 		}//============================================Set end
 
 		fp.close();
