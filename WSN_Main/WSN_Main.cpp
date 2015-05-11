@@ -22,8 +22,8 @@ using namespace std;
 		Global value
 ==================================*/
 const float MIN_Uti=1.0;
-const float MAX_Uti=3.0;
-const short int Set=10;
+const float MAX_Uti=5.0;
+const short int Set=100;
 
 short int Rateproposal=1;				//AssignRate()中的方法編號 0=>Event, 1=>TSB, 2=>DIF, 
 bool preemptionenable=true;			//設定可否preemption
@@ -33,6 +33,7 @@ int Pktsize=0;							//計算IntervalPower的pkt num
 double DIFMinperiod=0;
 double Meetcount=0;
 double AverageE=0;
+int TDMASlot=1;
 
 Edge *HeadEdge=new Edge;
 Edge *MainEdge=new Edge;
@@ -96,6 +97,7 @@ int main(){
 		for(short int setnum=0;setnum<Set;setnum++){
 			Meetflag=true;
 			Timeslot=0;
+			TDMASlot=1;
 			Hyperperiod=0;
 			totalevent=0;
 
@@ -120,10 +122,17 @@ int main(){
 			==========================*/
 			ConnAlgorithm(Rateproposal);
 			
+
+			/*=========================
+				Schedulability test
+			=========================*/
+			Schedulability();
+
 			/*==========================
 				EDF scheduling
 				(FlowSchedule.cpp)
-			==========================*/
+			==========================*/			
+
 			int FlowSlot=0;			//先由哪一Slot開始傳(TDMATable)
 			bool Flow_flag=false;	//判斷有無碰撞(ConflictEdge)
 			Headflow->pkt=NULL;		//一開始的flow中包含的封包設定為NULL
@@ -134,11 +143,6 @@ int main(){
 				MainSchedule(FlowSlot,Flow_flag);
 				
 				Timeslot++;
-
-				
-				if(setnum==5 && Timeslot==3){
-					system("PAUSE");
-				}
 			}
 			
 			/*==========================

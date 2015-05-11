@@ -79,6 +79,20 @@ void SaveFile(short int setnum){
 			
 	Resultfile<<"TotalEnergy:"<<totalenergy<<endl;
 	cout<<"TotalEnergy:"<<totalenergy<<endl;
+	
+	//---------------------------------------------------TDMA table
+	TDMATable *FlowTable=TDMA_Tbl;
+	while(FlowTable!=NULL){
+		cout<<"S"<<FlowTable->slot<<" n"<<FlowTable->n1->id<<endl;
+		Resultfile<<"S"<<FlowTable->slot<<" n"<<FlowTable->n1->id<<endl;
+
+		FlowTable=FlowTable->next_tbl;
+	}
+
+
+
+	//---------------------------------------------------存取各個node資訊
+	Resultfile<<"Energy Tc, Color Conflict_node, coor_x coor_y Send_node"<<endl;
 
 	node=Head->nextnd;
 	while(node!=NULL){
@@ -134,8 +148,8 @@ void SaveFile(short int setnum){
 		cout<<"Meet Deadline:MISS"<<endl;
 	}
 	
-	Resultfile<<"=============================================="<<endl;
-	Schdulefile<<"=============================================="<<endl;
+	Resultfile<<"==============================================="<<setnum<<endl;
+	Schdulefile<<"=============================================="<<setnum<<endl;
 	cout<<"=============================================="<<setnum<<endl;
 }
 

@@ -294,6 +294,7 @@ void TDMA_Assignment(){
 		}
 	
 		//-----------------------------------在此slot上的node，判斷與其不碰撞的node為何
+		//做為之後Node-Based 或 Level-Based 的延伸
 		N_CEdge=ConflictEdge;
 		node=Head->nextnd;
 		while(node!=NULL){
@@ -311,18 +312,19 @@ void TDMA_Assignment(){
 							}
 							N_CEdge=N_CEdge->next_edge;
 						}
-
+						/*
 						//判斷node 與 tmpnode是否有碰撞
 						if(!conflict_flag){
 							//assign pair{slot,node}
 							TDMA_Tbl->slot=colorid;	
-							TDMA_Tbl->n1=node;		
-
+							TDMA_Tbl->n1=node;	//tmpnode	
+							
 							tmp_tbl=new TDMATable;
 							TDMA_Tbl->next_tbl=tmp_tbl;
 							tmp_tbl->pre_tbl=TDMA_Tbl;
 							TDMA_Tbl=tmp_tbl;
 						}
+						*/
 					}
 
 					tmpnode=tmpnode->nextnd;

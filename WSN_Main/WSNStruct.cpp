@@ -147,7 +147,8 @@ void StructGEN(){
 			packet=packet->nextpkt;
 		}
 	}
-	
+	GENfile>>str;//useless
+
 	if(SetNode==NULL){
 		int Setid=1;
 		Node *tmpSetNode;

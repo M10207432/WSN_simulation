@@ -24,6 +24,7 @@ using namespace std;
 	Flow_flag-->判斷有無碰撞(ConflictEdge)
 ==========================*/
 void MainSchedule(int FlowSlot,bool Flow_flag){
+
 	//-------------------------------找出connection interval抵達的node
 	Node *Flownode=Head->nextnd;
 	while(Flownode!=NULL){	
@@ -32,6 +33,17 @@ void MainSchedule(int FlowSlot,bool Flow_flag){
 
 		if(Timeslot % int(Flownode->eventinterval)==0 && Buffer->pkt!=NULL) //若有Recvnode，也需考量其interval
 			Flownode->arrival_flag=1;
+		
+		/*--------------------------
+			若Connection interval到
+			但未有pkt可以先記錄已arrival
+			set arrival_flag為10
+			等待下一次有pkt情況
+		--------------------------*/
+		if(Flownode->arrival_flag==10 && Buffer->pkt!=NULL) //若有Recvnode，也需考量其interval
+			Flownode->arrival_flag=1;
+		if(Timeslot % int(Flownode->eventinterval)==0 && Buffer->pkt==NULL) //若有Recvnode，也需考量其interval
+			Flownode->arrival_flag=10;
 
 		Flownode=Flownode->nextnd;
 	}
@@ -39,27 +51,43 @@ void MainSchedule(int FlowSlot,bool Flow_flag){
 	//-------------------------------找出目前因該傳輸的TDMA slot id (FlowSlot)，
 	//都會以最早的time slot為主，並未有依序情況(若要此slot傳完換下一slot為主需要加入判斷)
 	//即為需加入要比 前一FlowSlot 往後Slot
+	
+	int Maxslot=0;	//找出TDMA最大Slot id
 	TDMATable *FlowTable=TDMA_Tbl;
 	while(FlowTable!=NULL){
+		/*
 		if(FlowTable->n1->arrival_flag==1){
 			FlowSlot=FlowTable->slot;
 			break;
 		}
+		*/
+		if(FlowTable->slot > Maxslot){
+			Maxslot=FlowTable->slot;
+		}
+
 		FlowTable=FlowTable->next_tbl;
 	}
-
+	
+	FlowSlot=TDMASlot++;
+	if(FlowSlot>Maxslot){
+		FlowSlot=1;
+		TDMASlot=2;
+	}
+	//-------------------------------TDMA Table下找FlowSlot 的node
 	FlowTable=TDMA_Tbl;
-
 	while(FlowTable!=NULL){
 					
 		Flow_flag=true;
 		if(FlowTable->n1->arrival_flag==1 && FlowTable->slot==FlowSlot){//找已經arrival的node 且 在此FlowSlot上
 						
 			//此FlowTable上的n1並未有剛剛傳輸完畢的node碰撞 (ConflictEdge->n2的arrival_flag可為1 但不可為-1)
+			//(理論上來說在TDMA schedule建立Table時就有防止這一項)
 			Edge *tmp_ConflictEdge=ConflictEdge;
 			while(tmp_ConflictEdge!=NULL){
 				if(tmp_ConflictEdge->n1==FlowTable->n1 && tmp_ConflictEdge->n2->arrival_flag==-1){ 
 					Flow_flag=false;
+					cout<<"At FlowSchedule the slot's node have conflict with each other"<<endl;
+					system("PAUSE");
 				}
 				tmp_ConflictEdge=tmp_ConflictEdge->next_edge;
 			}
@@ -411,5 +439,71 @@ void BufferSet(){
 
 	//需考量RecvNode->NodeBuffer
 	//...
+
+}
+
+/*=========================
+	Admission Control
+	(計算原本的Tc 與 
+	TDMA 因素造成的間隔)
+=========================*/
+void Schedulability(){
+	int n=0;
+	int Tc=0;
+	int differentvalue=0;
+	int Slotid=0;
+	int TDMASize=0;
+	int preTXslot=0;
+	int endTXslot=0;
+
+	TDMATable *Stable=TDMA_Tbl;
+	
+	node=Head->nextnd;
+	while(Stable!=NULL){
+		if(TDMASize<Stable->slot){
+			TDMASize=Stable->slot;
+		}
+		Stable=Stable->next_tbl;
+	}
+	Stable=TDMA_Tbl;
+
+
+	/*---------------------------
+			計算每一node
+		比較其Connection interval
+		與TDMA造成的延遲發送間格
+	---------------------------*/
+	while(node!=NULL){
+		//設定原本的Connection interval
+		Tc=node->eventinterval;
+	
+		//找出其TDMA上的 發送的Slotid
+		while(Stable->n1!=node){
+			Stable=Stable->next_tbl;
+		}
+		Slotid = Stable->slot-1;
+		Stable=TDMA_Tbl;
+
+		//
+		preTXslot=Slotid;
+		n=1;
+		differentvalue=0;
+		while(n*Tc <= Hyperperiod){
+			endTXslot=Slotid+TDMASize*floor(n*Tc/TDMASize);
+			while(endTXslot < n*Tc)
+				endTXslot=endTXslot+TDMASize;
+
+			differentvalue=differentvalue+(Tc-(endTXslot-preTXslot));
+		
+			preTXslot=endTXslot;
+			n++;
+		}
+		/*
+		if(differentvalue<0){
+			printf("Node%d Predict Miss deadline\n",node->id);
+		}
+		*/
+		node=node->nextnd;
+	}
 
 }

@@ -92,7 +92,7 @@ void TSB(){
 			while(doneflag!=true){
 				Totalsize=0;
 
-				//算出所需buffer量
+				//算出所需buffer量 (Packet 數量 --> Totalsize)
 				TSBpkt=TSBnode->pktQueue;
 				while(TSBpkt->period <= Tslot){
 					Totalsize=Totalsize+(ceil(TSBpkt->load/payload)*ceil(Tslot/TSBpkt->period));	
@@ -103,8 +103,8 @@ void TSB(){
 
 				//計算需要的event數量，反推所需buffer量 (解決Hop不連續上的問題)
 				if(nodehop>1){
-					totalevent=ceil(Totalsize/payload);
-					Totalsize=Totalsize*nodehop*Maxbuffersize;
+					totalevent=ceil(Totalsize/Maxbuffersize);
+					Totalsize=(totalevent*Maxbuffersize)*nodehop;
 				}
 
 				//計算Connection interval
