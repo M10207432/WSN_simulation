@@ -17,7 +17,8 @@ struct Node{
 	int id;
 	short int hop;		//range 1~3
 	short int color;	//顏色
-	
+	bool ContinueNotify;	//Connection interval arrival則為True, Buffer=Empty為False
+
 	Node* SendNode;//傳送節點
 	double coor_x,coor_y;//座標
 	double radius;
@@ -43,6 +44,7 @@ struct Node{
 	Node* next_recvnode;
 	Packet* RecvPkt;
 	Packet* next_recvpkt;
+	int TDMArecv_flag;
 
 	PacketBuffer* NodeBuffer;
 };
@@ -118,7 +120,8 @@ extern Node* SetHead;
 extern Node* Head;
 extern Packet* Headpacket;
 extern Node *SetNode;
-extern Node* node;
+extern Node* node;	
+extern Node*NotifyNode;	//正在傳輸的node,最多可連傳6個packets
 extern Packet* packet;
 extern Packet *ReadyQ;
 extern Flow *Headflow;

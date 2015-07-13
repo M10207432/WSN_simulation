@@ -19,9 +19,9 @@ fstream Powerfile;
 fstream Resultfile;
 
 string GENPath="..\\GENresult\\";
-string SchedulePath="..\\WSNresult\\TSBResult_ver2\\";
-string PowerPath="..\\WSNresult\\TSBResult_ver2\\";
-string ResultPath="..\\WSNresult\\TSBResult_ver2\\";
+string SchedulePath="..\\WSNresult\\TSB_TDMA_ToAp\\";
+string PowerPath="..\\WSNresult\\TSB_TDMA_ToAp\\";
+string ResultPath="..\\WSNresult\\TSB_TDMA_ToAp\\";
 
 /*===========================
 		將GEN的資料取入 且

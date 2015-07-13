@@ -117,6 +117,7 @@ void StructGEN(){
 			node->ChildNode=NULL;
 			node->order_flag=false;
 			node->arrival_flag=0;
+			node->ContinueNotify=true;
 			packet=node->pkt;
 
 			node->id=ndid++;

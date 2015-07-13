@@ -13,11 +13,14 @@
 
 using namespace std;
 
+ConnectionInterval::ConnectionInterval(){
+	printf("Connection Interval Obj\n");
+}
 /*==============================================
 		選擇需要哪一個 
 		Connection interval 計算方式
 ==============================================*/
-void ConnAlgorithm(int Rateproposal){
+void ConnectionInterval::ConnAlgorithm(int Rateproposal){
 	switch (Rateproposal)
 	{
 	case 0:
@@ -46,7 +49,7 @@ void ConnAlgorithm(int Rateproposal){
 /*==============================================
 		每一node connection interval 都為 1
 ==============================================*/
-void Event(){
+void ConnectionInterval::Event(){
 	node=Head->nextnd;
 	while(node!=NULL){
 		node->eventinterval=1;
@@ -62,7 +65,7 @@ void Event(){
 	否
 		依照間隔buffersize做計算
 ==============================================*/
-void TSB(){
+void ConnectionInterval::TSB(){
 	PacketQueue();		//先排Ready Queue
 	Packet *TSBpktQ=ReadyQ;
 	Packet *TSBpkt=Head->nextnd->pkt;
@@ -139,7 +142,7 @@ step3:計算各區間 rate
 step4:找出最大rate , 其在區間的packet assign 此rate
 (找區間時要將有rate的區間時間拿掉)
 ===========================*/
-void DIF(){
+void ConnectionInterval::DIF(){
 	PacketQueue();
 	DIFMinperiod=ReadyQ->readynextpkt->period;
 	Packet * DIFpacket;
@@ -253,7 +256,7 @@ void DIF(){
 	delete []DIFpacket;
 }
 
-void Rate_TO_Interval(int defaultMinperiod){
+void ConnectionInterval::Rate_TO_Interval(int defaultMinperiod){
 	//判斷是否需要改變Tc
 	double exconnectioninterval=Connectioninterval;
 	Connectioninterval=0;

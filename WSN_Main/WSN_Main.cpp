@@ -22,10 +22,11 @@ using namespace std;
 		Global value
 ==================================*/
 const float MIN_Uti=1.0;
-const float MAX_Uti=5.0;
-const short int Set=100;
+const float MAX_Uti=3.0;
+const short int Set=50;
 
 short int Rateproposal=1;				//AssignRate()中的方法編號 0=>Event, 1=>TSB, 2=>DIF, 
+short int TDMAproposal=0;				//TDMA的assign方法 0=>自己的方法(只有一個superslot), 1=>Node base方法 (會再接續加入superslot)
 bool preemptionenable=true;			//設定可否preemption
 
 int Flowinterval=0;					//觸發進入flow的conneciton interval
@@ -42,6 +43,7 @@ TDMATable *TDMA_Tbl=new TDMATable;
 PacketBuffer* Buffer=new PacketBuffer;
 Node* SetHead=new Node;
 Node* Head=new Node;
+Node* NotifyNode=new Node;
 Packet* Headpacket=new Packet;
 Node *SetNode=new Node;
 Node* node=new Node;
@@ -64,9 +66,9 @@ double slotinterval=1;				//Time slot間距為10ms
 double Connectioninterval=0;		//Conneciton inteval 只會在10ms~4000ms
 double totalevent=0;				//Event數量
 bool Meetflag=true;					//看是否meet deadline
-/*====================
+/*========================================
 		Power function parameter
-====================*/
+========================================*/
 double Vcc=3.3;			//BLE 驅動電壓
 double Isleep=0.003;	//Sleep 電流 
 double Ie=0.07679763;		//傳輸峰值 電流
@@ -77,10 +79,18 @@ double TotalEnergy=0;
 double parma=0.00191571992;
 double parmb=24.4058498;
 
+/*========================================
+		Create Object
+========================================*/
+ConnectionInterval ConnInterval;
+TDMA TDMA_obj;
+
 int main(){
 
 	cout<<"Type Rateproposal(0->Event, 1->TSB):";
 	cin>>Rateproposal;
+	cout<<"Type TDMAproposal(0->single superslot, 1->Node base):";
+	cin>>TDMAproposal;
 
 	for(float U=MIN_Uti; U<=MAX_Uti; U++){
 		delete SetNode;SetNode=NULL;
@@ -97,10 +107,14 @@ int main(){
 		for(short int setnum=0;setnum<Set;setnum++){
 			Meetflag=true;
 			Timeslot=0;
-			TDMASlot=1;
+			TDMASlot=-1;
 			Hyperperiod=0;
 			totalevent=0;
+			NotifyNode=NULL;
 
+			if(setnum==47){
+				int y=0;
+			}
 			/*==========================
 				建立Linklist以及
 				GEN的資料放進去
@@ -110,38 +124,34 @@ int main(){
 			
 			/*==========================
 			Topology & TDMA assignment
-			(TDMASchedule.cpp)
 			==========================*/
-			Topology();			
-			NodeColoring();		
-			TDMA_Assignment();	
+			TDMA_obj.Topology();
+			TDMA_obj.NodeColoring();
+			TDMA_obj.TDMA_Assignment(TDMAproposal);
 
 			/*==========================
 				計算Connection interval
-				(ConnInterval.cpp)
 			==========================*/
-			ConnAlgorithm(Rateproposal);
+			ConnInterval.ConnAlgorithm(Rateproposal);
 			
-
 			/*=========================
 				Schedulability test
 			=========================*/
-			Schedulability();
+			//Schedulability();
 
 			/*==========================
 				EDF scheduling
 				(FlowSchedule.cpp)
-			==========================*/			
+			==========================*/
 
 			int FlowSlot=0;			//先由哪一Slot開始傳(TDMATable)
 			bool Flow_flag=false;	//判斷有無碰撞(ConflictEdge)
 			Headflow->pkt=NULL;		//一開始的flow中包含的封包設定為NULL
 			
 			while(Timeslot<Hyperperiod){
-				PacketQueue();	
-				BufferSet();
-				MainSchedule(FlowSlot,Flow_flag);
-				
+				PacketQueue();
+				BLESchedule(Timeslot,Flow_flag);
+
 				Timeslot++;
 			}
 			

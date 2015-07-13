@@ -8,6 +8,7 @@ extern double TotalEnergy;
 extern double parma;
 extern double parmb;
 
+
 void NodeEnergy();
 double IntervalPower(int ,int );
 void NodeState();
