@@ -20,9 +20,9 @@ fstream Powerfile;
 fstream Resultfile;
 
 string GENPath="..\\GENresult\\";
-string SchedulePath="..\\WSNresult\\TSB_TDMA_ToAp\\";
-string PowerPath="..\\WSNresult\\TSB_TDMA_ToAp\\";
-string ResultPath="..\\WSNresult\\TSB_TDMA_ToAp\\";
+string SchedulePath="..\\WSNresult\\IntervalDiv_TDMASchedule\\";
+string PowerPath="..\\WSNresult\\IntervalDiv_TDMASchedule\\";
+string ResultPath="..\\WSNresult\\IntervalDiv_TDMASchedule\\";
 
 /*===========================
 		將GEN的資料取入 且
@@ -127,9 +127,20 @@ void SaveFile(short int setnum){
 
 		node=node->nextnd;
 	}
+
+	cout<<"	FrameSize, FramePeriod"<<endl;
+	for(FrameTable* Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
+		cout<<"Frame"	<<Ftbl->id<<":"
+						<<Ftbl->Size<<", "
+						<<Ftbl->Period<<endl;
+		Resultfile<<"Frame"	<<Ftbl->id<<":"
+							<<Ftbl->Size<<", "
+							<<Ftbl->Period<<endl;
+	}
+
 	if(Meetflag==true){
 		Resultfile<<"Meet Deadline:MEET"<<endl;
-		cout<<"Meet Deadline:MEET"<<endl;
+		cout<<"Meet Deadsline:MEET"<<endl;
 				
 		node=Head->nextnd;
 		SetNode=SetHead->nextnd;

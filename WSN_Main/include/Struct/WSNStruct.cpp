@@ -24,6 +24,7 @@ void StructGEN(){
 	delete HeadEdge;delete MainEdge;delete ConflictEdge;
 	HeadEdge=NULL;MainEdge=NULL;ConflictEdge=NULL;
 	delete TDMA_Tbl;TDMA_Tbl=NULL;
+	delete FrameTbl;FrameTbl=NULL;
 
 	Head=new Node;
 	Headpacket=new Packet;

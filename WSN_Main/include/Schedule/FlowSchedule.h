@@ -19,5 +19,7 @@ void NodeBufferSet(Node *);
 void BLESchedule(int, bool);
 void BLE_EDF(Node *);
 
-void EIMASchedule();
+void FrameEDFSchedule();
 void TDMASchedule();
+
+void Schedule(int);

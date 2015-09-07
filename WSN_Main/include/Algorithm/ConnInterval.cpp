@@ -45,6 +45,32 @@ void EventInterval::Algorithm(int Rateproposal){
 		packet=packet->nextpkt;
 	}
 }
+
+/*==============================================
+		選擇需要哪一個 
+		Connection interval 結合TDMA修正方式
+==============================================*/
+void EventInterval::Interval_TDMA_Algorithm(int proposal){
+	switch (proposal)
+	{
+	case 0:
+		EIMA();
+		break;
+	case 1:
+		IntervalDivide();
+		break;
+	default:
+		break;
+	}
+
+	//確認每一node interval不小於1
+	for(Node* node=Head->nextnd; node!=NULL; node=node->nextnd){
+		if(node->eventinterval<1){
+			node->eventinterval=1;
+		}
+	}
+}
+
 /*==============================================
 		每一node connection interval 都為 1
 ==============================================*/
@@ -124,7 +150,7 @@ void EventInterval::TSB(){
 				}
 			}	
 
-			TSBnode->eventinterval=Tc;
+			TSBnode->eventinterval=Tc-Maxbuffersize;
 			TSBnode=TSBnode->nextnd;
 		}
 	}
@@ -296,63 +322,53 @@ void EventInterval::Rate_TO_Interval(int defaultMinperiod){
 		=>會修正各node上的interval
 		=>Assign好各自SCAN duration
 ==============================================*/
-void EventInterval::EIMA(Node *EIMA_node,TDMATable *EIMA_Tbl){
+void EventInterval::EIMA(){
+	bool EIMAEDF_flag=true;	//測試EIMA EDF 上對於inteval上的調整
+
 	double TDMASize=1;	//TDMASIZE
 	double Mininterval=Hyperperiod;	//最小的interval
 	double tmpinterval=Hyperperiod;
 	int devicenum=0;	//device 數量
 	int MaxAdvinter=0;	//對應廣播群中最大的廣播間距
+	short int frameid=1;
+
+	//-------------------------------Assign給FrameTbl,只有Connection node為3個再用
+	FrameTbl=new FrameTable;
+	FrameTable* Ftbl=FrameTbl;
+
+	for(TDMATable* tbl=TDMA_Tbl; tbl!=NULL; tbl=tbl->next_tbl){
+		if(tbl->slot==frameid && tbl->n1->SendNode==Head){
+			Ftbl->id=frameid++;
+			Ftbl->Currentflag=false;
+			Ftbl->Period=tbl->n1->eventinterval;
+			Ftbl->Deadline=tbl->n1->eventinterval;
+			Ftbl->Size=Ftbl->Period/nodelevel1;
+			Ftbl->Utilization=1/nodelevel1;
+
+			Ftbl->ConnNode= tbl->n1;			//指向此Conn Node
+			tbl->n1->eventinterval=Ftbl->Size;	//更新node上的connection interval
+
+			Ftbl->next_tbl=new FrameTable;
+			Ftbl->next_tbl->pre_tbl=Ftbl;
+			Ftbl=Ftbl->next_tbl;
+		}
+	}
+	Ftbl->pre_tbl->next_tbl=NULL;
+
+	if(--frameid>3){
+		printf("The Frame size is larger than three, the FrameTable is error\n");
+		system("PAUSE");
+	}
 	
-	//-------------------------------考量TDMA架構，做Node interval上的優化
-	//找TDMA size
-	for(TDMATable* tbl=TDMA_Tbl; tbl!=NULL;tbl=tbl->next_tbl){
-		if(tbl->slot>TDMASize)
-			TDMASize=tbl->slot;
-	}
-
-	//找最小的connection interval
-	for(Node *node=Head->nextnd; node!=NULL; node=node->nextnd){
-		if(node->SendNode==Head && node->eventinterval<Mininterval){
-			Mininterval=node->eventinterval;
-		}
-	}
-
-	//修正connection interval
-	
-	for(Node *node=Head->nextnd; node!=NULL; node=node->nextnd){
-		if(node->SendNode==Head){
-			node->eventinterval=(Mininterval/TDMASize);
-			
-			//node->eventinterval=node->eventinterval/TDMASize;
-		}
-	}
-
-	/*
-	for(Node* node=Head->nextnd;node!=NULL; node=node->nextnd){
-		node->eventinterval=6;
-	}
-	*/
-	/*
-	do{
-		tmpinterval=0;
-		for(Node *node=Head->nextnd; node!=NULL; node=node->nextnd){
-			if(node->SendNode==Head){
-				//node->eventinterval=Mininterval/TDMASize;
-				tmpinterval=tmpinterval+(--node->eventinterval);
-			}	
-		}
-	}while(tmpinterval>Mininterval);
-	*/
 	//-------------------------------Scan duration 計算
-	while(EIMA_node!=NULL){
+	for(Node* node=Head->nextnd; node!=NULL; node=node->nextnd){
 		devicenum=0;
 		MaxAdvinter=0;
-
-		if(EIMA_node->SendNode==Head){
+		if(node->SendNode==Head){
 			//先找Device 數量 & 對應最大廣播間距
 			Node *BelongNode=Head->nextnd;
 			while(BelongNode!=NULL){
-				if(EIMA_node==BelongNode->SendNode){
+				if(node==BelongNode->SendNode){
 					devicenum++;			
 					if(BelongNode->eventinterval>MaxAdvinter){
 						MaxAdvinter=BelongNode->eventinterval;
@@ -362,37 +378,132 @@ void EventInterval::EIMA(Node *EIMA_node,TDMATable *EIMA_Tbl){
 			}
 
 			//計算Scan duration
-			EIMA_node->ScanDuration=EIMA_node->SCAN_Compute(EIMA_node->ScanWin,
-															EIMA_node->ScanInter,
-															MaxAdvinter,
-															devicenum);
+			node->ScanDuration=node->SCAN_Compute(	node->ScanWin,
+													node->ScanInter,
+													MaxAdvinter,
+													devicenum);
 		}else{
-			EIMA_node->ScanDuration=0;
+			node->ScanDuration=0;
 		}
+	}
+	
+	//---------------------------------Print 出資訊
+	for(Node* node=Head->nextnd; node!=NULL; node=node->nextnd){
+		cout<<	"Node"<<node->id<<"=> "<<
+				"Interval="<<node->eventinterval<<", "<<
+				"Slot="<<node->color<<", "<<
+				"Scan Duaration="<<node->ScanDuration<<", "<<
+				"SendNode="<<node->SendNode->id<<endl;
+	}
+	for(FrameTable* Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
+		cout<<"Frame"<<Ftbl->id<<" =>"<<
+			" size="<< Ftbl->Size<<","<<
+			" period="<<Ftbl->Period<<endl;
+	}
+}
+/*==================================
+		Small Interval Divide
+==================================*/
+void EventInterval::IntervalDivide(){
 
-		EIMA_node=EIMA_node->nextnd;
+	double TDMASize=1;	//TDMASIZE
+	double Mininterval=Hyperperiod;	//最小的interval
+	double tmpinterval=Hyperperiod;
+	int devicenum=0;	//device 數量
+	int MaxAdvinter=0;	//對應廣播群中最大的廣播間距
+	short int frameid=1;
+	
+	//-------------------------------考量TDMA架構，做Node interval上的優化
+	//找TDMA size
+	for(TDMATable* tbl=TDMA_Tbl; tbl!=NULL;tbl=tbl->next_tbl){
+		if(tbl->slot>TDMASize)
+			TDMASize=tbl->slot;
+	}
+	
+	//找最小的connection interval
+	for(Node *node=Head->nextnd; node!=NULL; node=node->nextnd){
+		if(node->SendNode==Head && node->eventinterval<Mininterval){
+			Mininterval=node->eventinterval;
+		}
+	}
+
+	//修正connection interval
+	for(Node *node=Head->nextnd; node!=NULL; node=node->nextnd){
+		if(node->SendNode==Head){
+			node->eventinterval=(Mininterval/TDMASize);
+			//node->eventinterval=node->eventinterval/TDMASize;
+		}
+	}
+
+	//FrameTbl建立
+	FrameTbl=new FrameTable;
+	FrameTable* Ftbl=FrameTbl;
+
+	for(TDMATable* tbl=TDMA_Tbl; tbl!=NULL; tbl=tbl->next_tbl){
+		if(tbl->slot==frameid && tbl->n1->SendNode==Head){
+			Ftbl->id=frameid++;
+			Ftbl->Currentflag=false;
+			Ftbl->Period=tbl->n1->eventinterval;
+			Ftbl->Deadline=tbl->n1->eventinterval;
+			Ftbl->Size=tbl->n1->eventinterval;
+			Ftbl->Utilization=0.3;
+
+			Ftbl->ConnNode= tbl->n1;			//指向此Conn Node
+			tbl->n1->eventinterval=Ftbl->Size;	//更新node上的connection interval
+
+			Ftbl->next_tbl=new FrameTable;
+			Ftbl->next_tbl->pre_tbl=Ftbl;
+			Ftbl=Ftbl->next_tbl;
+		}
+	}
+	Ftbl->pre_tbl->next_tbl=NULL;
+
+	if(--frameid>3){
+		printf("The Frame size is larger than three, the FrameTable is error\n");
+		system("PAUSE");
+	}
+	
+	//-------------------------------Scan duration 計算
+	for(Node* node=Head->nextnd; node!=NULL; node=node->nextnd){
+		devicenum=0;
+		MaxAdvinter=0;
+		if(node->SendNode==Head){
+			//先找Device 數量 & 對應最大廣播間距
+			Node *BelongNode=Head->nextnd;
+			while(BelongNode!=NULL){
+				if(node==BelongNode->SendNode){
+					devicenum++;			
+					if(BelongNode->eventinterval>MaxAdvinter){
+						MaxAdvinter=BelongNode->eventinterval;
+					}
+				}
+				BelongNode=BelongNode->nextnd;
+			}
+
+			//計算Scan duration
+			node->ScanDuration=node->SCAN_Compute(	node->ScanWin,
+													node->ScanInter,
+													MaxAdvinter,
+													devicenum);
+		}else{
+			node->ScanDuration=0;
+		}
 	}
 
 	//---------------------------------Print 出資訊
-	EIMA_node=Head->nextnd;
-	while(EIMA_node!=NULL){
-		
-		cout<<	"Node"<<EIMA_node->id<<"=> "<<
-				"Interval="<<EIMA_node->eventinterval<<", "<<
-				"Slot="<<EIMA_node->color<<", "<<
-				"Scan Duaration="<<EIMA_node->ScanDuration<<", "<<
-				"SendNode="<<EIMA_node->SendNode->id<<endl;
-		/*
-		printf("Node%d=> Interval=%lf, Slot=%hd, ScanDuration=%lf SendNode=%d\n",EIMA_node->id,
-																				EIMA_node->eventinterval,
-																				EIMA_node->ScanDuration,
-																				EIMA_node->color,
-																				EIMA_node->SendNode->id);
-		*/
-		EIMA_node=EIMA_node->nextnd;
+	for(Node* node=Head->nextnd; node!=NULL; node=node->nextnd){
+		cout<<	"Node"<<node->id<<"=> "<<
+				"Interval="<<node->eventinterval<<", "<<
+				"Slot="<<node->color<<", "<<
+				"Scan Duaration="<<node->ScanDuration<<", "<<
+				"SendNode="<<node->SendNode->id<<endl;
+	}
+	for(FrameTable* Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
+		cout<<"Frame"<<Ftbl->id<<" =>"<<
+			" size="<< Ftbl->Size<<","<<
+			" period="<<Ftbl->Period<<endl;
 	}
 }
-
 /*==================================
 		連接順序
 ==================================*/

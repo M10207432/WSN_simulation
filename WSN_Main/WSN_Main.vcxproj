@@ -76,21 +76,21 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="ConnInterval.cpp" />
-    <ClCompile Include="FlowSchedule.cpp" />
-    <ClCompile Include="TDMA.cpp" />
-    <ClCompile Include="WSNEnergy.cpp" />
-    <ClCompile Include="WSNFile.cpp" />
-    <ClCompile Include="WSNStruct.cpp" />
+    <ClCompile Include="include\Algorithm\ConnInterval.cpp" />
+    <ClCompile Include="include\Algorithm\TDMA.cpp" />
+    <ClCompile Include="include\Schedule\FlowSchedule.cpp" />
+    <ClCompile Include="include\Struct\WSNEnergy.cpp" />
+    <ClCompile Include="include\Struct\WSNFile.cpp" />
+    <ClCompile Include="include\Struct\WSNStruct.cpp" />
     <ClCompile Include="WSN_Main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ConnInterval.h" />
-    <ClInclude Include="FlowSchedule.h" />
-    <ClInclude Include="TDMA.h" />
-    <ClInclude Include="WSNEnergy.h" />
-    <ClInclude Include="WSNFile.h" />
-    <ClInclude Include="WSNStruct.h" />
+    <ClInclude Include="include\Algorithm\ConnInterval.h" />
+    <ClInclude Include="include\Algorithm\TDMA.h" />
+    <ClInclude Include="include\Schedule\FlowSchedule.h" />
+    <ClInclude Include="include\Struct\WSNEnergy.h" />
+    <ClInclude Include="include\Struct\WSNFile.h" />
+    <ClInclude Include="include\Struct\WSNStruct.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

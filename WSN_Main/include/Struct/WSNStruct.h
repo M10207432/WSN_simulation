@@ -108,13 +108,29 @@ struct Edge{
 	Edge *next_edge;
 	Edge *pre_edge;
 };
+
+struct FrameTable{
+	bool Currentflag;
+	
+	short int id;
+	double Period;
+	double Size;
+	double Utilization;
+	double Deadline;
+	
+	Node *ConnNode;
+	
+	FrameTable* next_tbl;
+	FrameTable* pre_tbl;
+};
+
 struct TDMATable{
 	short int slot;
 	Node *n1;
 
 	bool currslot;	//是否為現在執行的slot
 	double count;	//此slot所需等待時間
-
+	
 	TDMATable * next_tbl;
 	TDMATable * pre_tbl;
 };
@@ -134,6 +150,7 @@ extern Edge *HeadEdge;
 extern Edge *MainEdge;
 extern Edge *ConflictEdge;
 extern TDMATable *TDMA_Tbl;		//主要傳輸的TDMA列表
+extern FrameTable* FrameTbl;	//放於Frame上的schedule用
 extern PacketBuffer* Buffer;
 extern Node* SetHead;
 extern Node* Head;

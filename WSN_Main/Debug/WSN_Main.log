@@ -1,29 +1,12 @@
-﻿已經開始建置於 2015/7/9 下午 08:59:48。
+﻿已經開始建置於 2015/9/7 下午 09:19:07。
      1>節點 2 (Build 目標) 上的專案 "F:\WSN_Simulation\WSN_Main\WSN_Main.vcxproj"。
      1>ClCompile:
-         C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /Od /Oy- /D WIN32 /D _DEBUG /D _CONSOLE /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc110.pdb" /Gd /TP /analyze- /errorReport:prompt FlowSchedule.cpp
-         FlowSchedule.cpp
-     1>f:\wsn_simulation\wsn_main\flowschedule.cpp(138): warning C4244: '=' : 將 'double' 轉換為 'int'，由於型別不同，可能導致資料遺失
-     1>f:\wsn_simulation\wsn_main\flowschedule.cpp(379): warning C4244: '正在初始化' : 將 'double' 轉換為 'int'，由於型別不同，可能導致資料遺失
-     1>f:\wsn_simulation\wsn_main\flowschedule.cpp(418): warning C4244: '=' : 將 'double' 轉換為 'int'，由於型別不同，可能導致資料遺失
-     1>f:\wsn_simulation\wsn_main\flowschedule.cpp(424): warning C4244: '=' : 將 'double' 轉換為 'int'，由於型別不同，可能導致資料遺失
-     1>f:\wsn_simulation\wsn_main\flowschedule.cpp(431): warning C4244: '=' : 將 'double' 轉換為 'int'，由於型別不同，可能導致資料遺失
-     1>f:\wsn_simulation\wsn_main\flowschedule.cpp(433): warning C4244: '=' : 將 'double' 轉換為 'int'，由於型別不同，可能導致資料遺失
-     1>f:\wsn_simulation\wsn_main\flowschedule.cpp(483): warning C4244: '=' : 將 'double' 轉換為 'int'，由於型別不同，可能導致資料遺失
-     1>f:\wsn_simulation\wsn_main\flowschedule.cpp(497): warning C4244: '=' : 將 'double' 轉換為 'int'，由於型別不同，可能導致資料遺失
-     1>f:\wsn_simulation\wsn_main\flowschedule.cpp(652): warning C4244: '=' : 將 'double' 轉換為 'int'，由於型別不同，可能導致資料遺失
-     1>f:\wsn_simulation\wsn_main\flowschedule.cpp(660): warning C4244: '=' : 將 'double' 轉換為 'int'，由於型別不同，可能導致資料遺失
-     1>f:\wsn_simulation\wsn_main\flowschedule.cpp(661): warning C4244: '=' : 將 'double' 轉換為 'int'，由於型別不同，可能導致資料遺失
-     1>f:\wsn_simulation\wsn_main\flowschedule.cpp(735): warning C4244: '正在初始化' : 將 'double' 轉換為 'int'，由於型別不同，可能導致資料遺失
-     1>f:\wsn_simulation\wsn_main\flowschedule.cpp(774): warning C4244: '=' : 將 'double' 轉換為 'int'，由於型別不同，可能導致資料遺失
-     1>f:\wsn_simulation\wsn_main\flowschedule.cpp(780): warning C4244: '=' : 將 'double' 轉換為 'int'，由於型別不同，可能導致資料遺失
-     1>f:\wsn_simulation\wsn_main\flowschedule.cpp(787): warning C4244: '=' : 將 'double' 轉換為 'int'，由於型別不同，可能導致資料遺失
-     1>f:\wsn_simulation\wsn_main\flowschedule.cpp(789): warning C4244: '=' : 將 'double' 轉換為 'int'，由於型別不同，可能導致資料遺失
-     1>f:\wsn_simulation\wsn_main\flowschedule.cpp(742): warning C4700: 使用了未初始化的區域變數 'tmpbufferpkt'
+         C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /Od /Oy- /D WIN32 /D _DEBUG /D _CONSOLE /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc110.pdb" /Gd /TP /analyze- /errorReport:prompt include\Struct\WSNFile.cpp
+         WSNFile.cpp
        Link:
          C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"F:\WSN_Simulation\WSN_Main\Debug\WSN_Main.exe" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"F:\WSN_Simulation\WSN_Main\Debug\WSN_Main.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"F:\WSN_Simulation\WSN_Main\Debug\WSN_Main.lib" /MACHINE:X86 Debug\ConnInterval.obj
-         Debug\FlowSchedule.obj
          Debug\TDMA.obj
+         Debug\FlowSchedule.obj
          Debug\WSNEnergy.obj
          Debug\WSNFile.obj
          Debug\WSNStruct.obj
@@ -33,4 +16,4 @@
 
 建置成功。
 
-經過時間 00:00:00.75
+經過時間 00:00:00.68

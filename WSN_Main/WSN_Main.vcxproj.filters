@@ -18,42 +18,42 @@
     <ClCompile Include="WSN_Main.cpp">
       <Filter>原始程式檔</Filter>
     </ClCompile>
-    <ClCompile Include="WSNFile.cpp">
+    <ClCompile Include="include\Struct\WSNEnergy.cpp">
       <Filter>原始程式檔</Filter>
     </ClCompile>
-    <ClCompile Include="ConnInterval.cpp">
+    <ClCompile Include="include\Struct\WSNFile.cpp">
       <Filter>原始程式檔</Filter>
     </ClCompile>
-    <ClCompile Include="FlowSchedule.cpp">
+    <ClCompile Include="include\Struct\WSNStruct.cpp">
       <Filter>原始程式檔</Filter>
     </ClCompile>
-    <ClCompile Include="WSNEnergy.cpp">
+    <ClCompile Include="include\Schedule\FlowSchedule.cpp">
       <Filter>原始程式檔</Filter>
     </ClCompile>
-    <ClCompile Include="WSNStruct.cpp">
+    <ClCompile Include="include\Algorithm\ConnInterval.cpp">
       <Filter>原始程式檔</Filter>
     </ClCompile>
-    <ClCompile Include="TDMA.cpp">
+    <ClCompile Include="include\Algorithm\TDMA.cpp">
       <Filter>原始程式檔</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="WSNFile.h">
+    <ClInclude Include="include\Struct\WSNEnergy.h">
       <Filter>原始程式檔</Filter>
     </ClInclude>
-    <ClInclude Include="WSNStruct.h">
+    <ClInclude Include="include\Struct\WSNFile.h">
       <Filter>原始程式檔</Filter>
     </ClInclude>
-    <ClInclude Include="ConnInterval.h">
+    <ClInclude Include="include\Struct\WSNStruct.h">
       <Filter>原始程式檔</Filter>
     </ClInclude>
-    <ClInclude Include="FlowSchedule.h">
+    <ClInclude Include="include\Schedule\FlowSchedule.h">
       <Filter>原始程式檔</Filter>
     </ClInclude>
-    <ClInclude Include="WSNEnergy.h">
+    <ClInclude Include="include\Algorithm\ConnInterval.h">
       <Filter>原始程式檔</Filter>
     </ClInclude>
-    <ClInclude Include="TDMA.h">
+    <ClInclude Include="include\Algorithm\TDMA.h">
       <Filter>原始程式檔</Filter>
     </ClInclude>
   </ItemGroup>
