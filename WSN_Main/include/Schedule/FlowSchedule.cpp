@@ -457,64 +457,73 @@ void BufferSet(){
 	TDMA 因素造成的間隔)
 =========================*/
 void Schedulability(){
-	int n=0;
-	int Tc=0;
-	int differentvalue=0;
-	int Slotid=0;
-	int TDMASize=0;
-	int preTXslot=0;
-	int endTXslot=0;
+	bool reassign=true;
+	double BlockingTime=0;
+	double minperiod=10000000;
+	double maxperiod=0;
+	double U_bound=0;
+	double sub=1000000000;
+	FrameTable *EndFrame;
 
-	TDMATable *Stable=TDMA_Tbl;
-	
-	node=Head->nextnd;
-	while(Stable!=NULL){
-		if(TDMASize<Stable->slot){
-			TDMASize=Stable->slot;
+	for (FrameTable* Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
+		if(Ftbl->Size>BlockingTime){
+			BlockingTime=Ftbl->Size;
 		}
-		Stable=Stable->next_tbl;
+		if(Ftbl->Period>maxperiod){
+			maxperiod=Ftbl->Period;
+		}
+		if(minperiod>Ftbl->Period){
+			minperiod=Ftbl->Period;
+			EndFrame=Ftbl;
+		}
 	}
-	Stable=TDMA_Tbl;
 
+	while(reassign){
+		reassign=false;
+		while(maxperiod!=EndFrame->Period){
 
-	/*---------------------------
-			計算每一node
-		比較其Connection interval
-		與TDMA造成的延遲發送間格
-	---------------------------*/
-	while(node!=NULL){
-		//設定原本的Connection interval
-		Tc=node->eventinterval;
-	
-		//找出其TDMA上的 發送的Slotid
-		while(Stable->n1!=node){
-			Stable=Stable->next_tbl;
-		}
-		Slotid = Stable->slot-1;
-		Stable=TDMA_Tbl;
+			//找尋要算到Frame (先找大於minperiod, 相差最小的)
+			sub=100000000;
+			for(FrameTable* Ftbl=FrameTbl; Ftbl!=NULL;Ftbl=Ftbl->next_tbl){
+				if(Ftbl->Period>minperiod){
+					if((Ftbl->Period-minperiod)<sub){
+						sub=(Ftbl->Period-minperiod);
+						EndFrame=Ftbl;
+					}
+				}
+			}
+			minperiod=EndFrame->Period;
 
-		//
-		preTXslot=Slotid;
-		n=1;
-		differentvalue=0;
-		while(n*Tc <= Hyperperiod){
-			endTXslot=Slotid+TDMASize*floor(n*Tc/TDMASize);
-			while(endTXslot < n*Tc)
-				endTXslot=endTXslot+TDMASize;
-
-			differentvalue=differentvalue+(Tc-(endTXslot-preTXslot));
+			//計算U bound
+			for (FrameTable* Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
+				if(Ftbl->Period<=minperiod){
+					if(BlockingTime!=Ftbl->Size)
+						U_bound=U_bound+(Ftbl->Size/Ftbl->Period);
+				}
+			}
+			U_bound=U_bound+BlockingTime/minperiod;
 		
-			preTXslot=endTXslot;
-			n++;
+			//看是否可schedulable
+			if(U_bound>=1){
+				reassign=true;
+			}
 		}
-		/*
-		if(differentvalue<0){
-			printf("Node%d Predict Miss deadline\n",node->id);
+		/*=================================
+				重新計算Event interval
+		=================================*/
+		if(reassign){
+			//找最大的Size做修改
+			for(FrameTable* Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
+				if(Ftbl->Size==BlockingTime){
+					BlockingTime--;
+					Ftbl->Size--;
+					Ftbl->ConnNode->eventinterval--;
+				}
+			}
 		}
-		*/
-		node=node->nextnd;
 	}
 
+	cout<<"Reassign Done"<<endl;
 }
 
 void BLESchedule(int FlowSlot, bool Flow_flag){
@@ -736,6 +745,7 @@ void NodeBufferSet(Node * SettingNode){
 	node->State為被通知的node
 	node->EvtArrival為event 抵達
 ***********************************************/
+
 void FrameEDFSchedule(){
 	
 	TDMATable *table=TDMA_Tbl;
@@ -751,8 +761,8 @@ void FrameEDFSchedule(){
 		對此frame上的node做state上的變化
 	----------------------------------------------*/
 	
-	if(Head->FrameSize<=0 ){ //(Head->RecvNode目前是先擋住，但之後要對FrameSize做修改)
-
+	if(Head->FrameSize<=0){ //(Head->RecvNode目前是先擋住，但之後要對FrameSize做修改)
+		
 		//找最小FrameTable的deadline
 		FrameTable *Work_tbl=FrameTbl;
 		for(FrameTable *Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
@@ -766,21 +776,13 @@ void FrameEDFSchedule(){
 
 		Work_tbl->Deadline=Work_tbl->Deadline+Work_tbl->Period;
 	}else{
-		Head->FrameSize--;
-		/*
-		if(Head->FrameSize<0){
-			cout<<"Frame size is less than zero"<<endl;
-			system("PAUSE");
-		}
-		*/
-		
+		Head->FrameSize--;		
 	}
 	
 	/*----------------------------------------------
 		ConnSet中被通知的Node做對應傳輸或SCAN
 		Notify & Scan可同時運作
 	----------------------------------------------*/
-	
 	for(Node *n=Head->nextnd; n!=NULL; n=n->nextnd){
 		
 		//-------------------State為Transmission, 只在event arrival 時才做Buffer規劃
@@ -795,7 +797,7 @@ void FrameEDFSchedule(){
 			bool eventarrival=false;
 			
 			if(n->EvtArrival && n->State=="Transmission" && (Head->RecvNode==NULL || Head->RecvNode==n)){
-				Head->RecvNode=n;
+				Head->RecvNode=n;	//Head->RecvNode切換
 			}
 			
 			//-------------------進行傳輸 (Head->RecvNode要確認目前沒node或為當前node)
@@ -815,6 +817,7 @@ void FrameEDFSchedule(){
 			}
 		}
 	}
+	
 }
 
 /***********************************************
