@@ -127,33 +127,30 @@ void NodeState(){
 void Node_EnergyState(Node *node){
 
 	if(node!=NULL){
+		/*====================================================
+					依照不同狀態做 Power計算
+		====================================================*/
 		//==========================Sleep 狀態
-		if(node->State=="Sleep"){
-			double P=0;
-			P=Vcc*I_sleep;
-			node->energy=node->energy+P;
-			node->State="Sleep";
+		if(node->State=="Sleep" && !node->EvtArrival){
+			node->energy=node->energy+(I_sleep*Time_sleep);
 		}
 
-		//==========================Transmission 狀態
-		if(node->State=="Transmission"){
-			double P=0;
-
-			//P=IntervalPower(Pktsize,Enode->LatestTimeslot-Enode->ExTimeslot);
+		//==========================Event arrival 狀態
+		if(node->EvtArrival){
+			node->energy=node->energy+((I_notify*Time_notify)+(I_sleep*(Time_sleep-Time_notify)));
+		}
+		if(node->State=="Transmission"){ //==========================Transmission 狀態
+			//node->energy=node->energy+((I_notify*Time_notify)+(I_sleep*(Time_sleep-Time_notify)));
+			node->energy=node->energy+((I_Tran*Time_Tran)+(I_sleep*(Time_sleep-Time_Tran)));
 			
-			//cout<<"Interval:"<<(Enode->LatestTimeslot-Enode->ExTimeslot)<<" E:"<<Enode->energy<<endl;
-			//Enode->ExTimeslot=Enode->LatestTimeslot;//紀錄此次發送時間
-			P=Vcc*I_notify;
-			node->energy=node->energy+P;
-
-			if(node->NodeBuffer->load==0)
+			if(node->NodeBuffer->load==0){
 				node->State="Sleep";
+			}
 		}
-
+		
 		//==========================Scan 狀態
 		if(node->State=="Scan"){
 			
 		}
-
 	}
 }

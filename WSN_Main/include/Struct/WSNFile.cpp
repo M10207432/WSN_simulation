@@ -6,7 +6,9 @@
 
 #include "WSNFile.h"
 #include "WSNStruct.h"
+#include "WSNEnergy.h"
 #include "../Schedule/FlowSchedule.h"
+
 using namespace std;
 
 /*===========================
@@ -20,9 +22,9 @@ fstream Powerfile;
 fstream Resultfile;
 
 string GENPath="..\\GENresult\\";
-string SchedulePath="..\\WSNresult\\IntervalDiv_TDMASchedule\\";
-string PowerPath="..\\WSNresult\\IntervalDiv_TDMASchedule\\";
-string ResultPath="..\\WSNresult\\IntervalDiv_TDMASchedule\\";
+string SchedulePath="..\\WSNresult\\EIMA_EDFSchedule_v3\\";
+string PowerPath="..\\WSNresult\\EIMA_EDFSchedule_v3\\";
+string ResultPath="..\\WSNresult\\EIMA_EDFSchedule_v3\\";
 
 /*===========================
 		將GEN的資料取入 且
@@ -73,7 +75,10 @@ void SaveFile(short int setnum){
 	double totalenergy=0;
 	node=Head->nextnd;
 	while(node!=NULL){
-		cout<<"Node"<<node->id<<" E:"<<node->energy<<endl;
+		node->energy=node->energy*Vcc;
+		node->lifetime=BatteryCapacity/((node->energy/Vcc)/(Hyperperiod*0.01));
+
+		cout<<"Node"<<node->id<<" E:"<<node->energy<<" Lifetime:"<<node->lifetime<<endl;
 		totalenergy=totalenergy+node->energy;
 		node=node->nextnd;
 	}
@@ -90,10 +95,8 @@ void SaveFile(short int setnum){
 		FlowTable=FlowTable->next_tbl;
 	}
 
-
-
 	//---------------------------------------------------存取各個node資訊
-	Resultfile<<"Energy Tc, Color Conflict_node, coor_x coor_y Send_node"<<endl;
+	Resultfile<<"Lifetime Energy Tc, Color Conflict_node, coor_x coor_y Send_node"<<endl;
 
 	node=Head->nextnd;
 	while(node!=NULL){
@@ -109,8 +112,8 @@ void SaveFile(short int setnum){
 
 		//Node id:energy connectioninterval,color conflictnode...,coor_x coor_y SendNode 
 		Resultfile<<"Node"<<node->id<<":";
-		Resultfile<<node->energy<<" "<<node->eventinterval<<",";
-				
+		Resultfile<<node->lifetime<<" "<<node->energy<<" "<<node->eventinterval<<",";
+		
 		Resultfile<<node->color<<" ";
 		Edge *printedge=ConflictEdge;
 		while(printedge!=NULL){

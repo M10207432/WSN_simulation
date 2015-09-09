@@ -26,6 +26,7 @@ struct Node{
 	double distanceto_BS;	//¨ìBase station ¶ZÂ÷
 	double energy;
 	double avgenergy;
+	double lifetime;
 	double eventinterval;
 	double EventTime;
 	short int ExTimeslot;
