@@ -22,9 +22,9 @@ fstream Powerfile;
 fstream Resultfile;
 
 string GENPath="..\\GENresult\\";
-string SchedulePath="..\\WSNresult\\EIMA_EDFSchedule_v3\\";
-string PowerPath="..\\WSNresult\\EIMA_EDFSchedule_v3\\";
-string ResultPath="..\\WSNresult\\EIMA_EDFSchedule_v3\\";
+string SchedulePath="..\\WSNresult\\IntervalDiv_TDMASchedule\\";
+string PowerPath="..\\WSNresult\\IntervalDiv_TDMASchedule\\";
+string ResultPath="..\\WSNresult\\IntervalDiv_TDMASchedule\\";
 
 /*===========================
 		將GEN的資料取入 且
