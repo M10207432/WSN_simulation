@@ -22,9 +22,9 @@ fstream Powerfile;
 fstream Resultfile;
 
 string GENPath="..\\GENresult\\";
-string SchedulePath="..\\WSNresult\\IntervalDiv_TDMASchedule\\";
-string PowerPath="..\\WSNresult\\IntervalDiv_TDMASchedule\\";
-string ResultPath="..\\WSNresult\\IntervalDiv_TDMASchedule\\";
+string SchedulePath="..\\WSNresult\\DebugPower\\";
+string PowerPath="..\\WSNresult\\DebugPower\\";
+string ResultPath="..\\WSNresult\\DebugPower\\";
 
 /*===========================
 		將GEN的資料取入 且
@@ -96,7 +96,7 @@ void SaveFile(short int setnum){
 	}
 
 	//---------------------------------------------------存取各個node資訊
-	Resultfile<<"Lifetime Energy Tc, Color Conflict_node, coor_x coor_y Send_node"<<endl;
+	Resultfile<<"	Lifetime Energy Tc NotifyEvt TranEvt, Color Conflict_node, coor_x coor_y Send_node"<<endl;
 
 	node=Head->nextnd;
 	while(node!=NULL){
@@ -112,7 +112,7 @@ void SaveFile(short int setnum){
 
 		//Node id:energy connectioninterval,color conflictnode...,coor_x coor_y SendNode 
 		Resultfile<<"Node"<<node->id<<":";
-		Resultfile<<node->lifetime<<" "<<node->energy<<" "<<node->eventinterval<<",";
+		Resultfile<<node->lifetime<<" "<<node->energy<<" "<<node->eventinterval<<" "<<node->Notify_evtcount<<" "<<node->Tran_evtcount<<",";
 		
 		Resultfile<<node->color<<" ";
 		Edge *printedge=ConflictEdge;

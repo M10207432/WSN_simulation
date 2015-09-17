@@ -138,8 +138,10 @@ void Node_EnergyState(Node *node){
 		//==========================Event arrival ª¬ºA
 		if(node->EvtArrival){
 			node->energy=node->energy+((I_notify*Time_notify)+(I_sleep*(Time_sleep-Time_notify)));
+			node->Notify_evtcount+=1;
 		}else if(node->State=="Transmission" && Head->RecvNode==node){ //==========================Transmission ª¬ºA
 			node->energy=node->energy+((I_Tran*Time_Tran)+(I_sleep*(Time_sleep-Time_Tran)));
+			node->Tran_evtcount+=1;
 		}
 		
 		//==========================Scan ª¬ºA

@@ -19,6 +19,8 @@ struct Node{
 	bool EvtArrival;
 	string CMD;				//通知動作 "IDLE" "Notify" "SCAN" (只會是ConnSet)
 	int FrameSize;			//TDMA對應的FrameSize
+	char16_t Notify_evtcount;	//Notify evt數量 (typedef uint16_t char16_t)
+	char16_t Tran_evtcount;		//Tran evt數量 (typedef uint16_t char16_t)
 
 	Node* SendNode;			//傳送節點
 	double coor_x,coor_y;	//座標
@@ -27,7 +29,7 @@ struct Node{
 	double energy;
 	double avgenergy;
 	double lifetime;
-	double eventinterval;
+	double eventinterval;	//connection interval or advertisement interval
 	double EventTime;
 	short int ExTimeslot;
 	short int LatestTimeslot;

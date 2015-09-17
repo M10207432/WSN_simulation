@@ -4,6 +4,7 @@
 #include <fstream>
 #include <string>
 #include <sstream>
+
 #include "WSNFile.h"
 #include "WSNStruct.h"
 
@@ -132,6 +133,9 @@ void StructGEN(){
 			node->arrival_flag=0;
 			node->ContinueNotify=false;
 			node->EventTime=-1;
+			node->Notify_evtcount=0;
+			node->Tran_evtcount=0;
+
 			packet=node->pkt;
 
 			node->id=ndid++;

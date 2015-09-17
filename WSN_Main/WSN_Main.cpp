@@ -78,8 +78,14 @@ bool Meetflag=true;					//看是否meet deadline
 		Power function parameter
 ========================================*/
 double Vcc=3.3;			//BLE 驅動電壓
+
 double I_sleep=0.000001;	//Sleep 電流 1uA
-double I_notify=0.0175;	//Notify 電流 20mA
+double Time_sleep=0.01;		//Sleep 電流 10ms
+double I_notify=0.0082463;	//Notify 電流 8.2463mA
+double Time_notify=0.002775;	//Notify 時間 2.775ms
+double I_Tran=0.0142744;	//Transmission 電流 14.2744mA
+double Time_Tran=0.00049;	//Transmission 時間 0.49ms
+double BatteryCapacity=0.230; //230mAh
 
 double Ie=0.07679763;		//傳輸峰值 電流
 double Te=0.0002768;		//傳輸時間
@@ -96,7 +102,7 @@ EventInterval Interval_obj;
 TDMA TDMA_obj;
 
 int main(){
-
+	/*
 	cout<<"Type single node interval(0->Event, 1->TSB):";
 	cin>>Rateproposal;
 	cout<<"Type TDMA table (0->single superslot, 1->Node base):";
@@ -105,7 +111,7 @@ int main(){
 	cin>>TDMA_Rateproposal;
 	cout<<"Type TDMA schedule (0->EDF, 1->TDMA table):";
 	cin>>TDMAscheduleproposal;
-
+	*/
 	for(float U=MIN_Uti; U<=MAX_Uti; U++){
 		delete SetNode;SetNode=NULL;
 		Meetcount=0;
@@ -155,7 +161,7 @@ int main(){
 			/*=========================
 				Schedulability test
 			=========================*/
-			//Schedulability();
+			Schedulability();
 
 			/*==========================
 				EDF scheduling
@@ -178,8 +184,6 @@ int main(){
 			while(Timeslot<Hyperperiod){
 				PacketQueue();
 				Schedule(TDMAscheduleproposal);
-				//FrameEDFSchedule();
-				//TDMASchedule();
 				
 				Timeslot++;
 			}

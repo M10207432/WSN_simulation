@@ -572,6 +572,7 @@ void BLE_EDF(Node *node){
 		PacketBuffer *Buffer=node->NodeBuffer;
 		if(Buffer->load!=0){
 			totalevent++;
+
 			Node *tmpnode=Buffer->pkt->node;
 
 			//cout<<"Time slot:"<<Timeslot<<" Node:"<<Buffer->pkt->node->id<<",";
@@ -782,6 +783,10 @@ void FrameEDFSchedule(){
 	/*----------------------------------------------
 		ConnSet中被通知的Node做對應傳輸或SCAN
 		Notify & Scan可同時運作
+
+		node是否有event arrival		(node->EvtArrival)
+		node是否有被通知				(Head->RecvNode, call BLE_EDF(node))
+		node energy consumption		(node->State)
 	----------------------------------------------*/
 	for(Node *n=Head->nextnd; n!=NULL; n=n->nextnd){
 		
@@ -793,6 +798,7 @@ void FrameEDFSchedule(){
 			n->EvtArrival =false;
 		}
 
+		//-------------------進行傳輸 [有被通知(node->State=="Transmission") 且 event arrival(node->EvtArrival)]
 		if(n->State!="Sleep"){
 			bool eventarrival=false;
 			
@@ -803,11 +809,9 @@ void FrameEDFSchedule(){
 			//-------------------進行傳輸 (Head->RecvNode要確認目前沒node或為當前node)
 			if(Head->RecvNode==n && NotifyFlag){
 				BLE_EDF(n);				//對n做傳輸
-				Node_EnergyState(n);	//計算n的Energy，且若Buffer做完傳輸即切換狀態(一定在在此切換，若提前切換State會有把transmission變為Sleep)
 
 				if(n->NodeBuffer->load==0){
 					Head->RecvNode=NULL;
-					n->State="Sleep";
 				}
 				
 				NotifyFlag=false;
@@ -818,15 +822,14 @@ void FrameEDFSchedule(){
 				//n->ScanDuration--;
 			}
 		}
+
+		//---------------------------------------Power consumption & State切換
+		Node_EnergyState(n);	//計算n的Energy
+		if(n->NodeBuffer->load==0){
+			n->State="Sleep";
+		}
 	}
 
-	/*----------------------------------------------
-				計算Power consumption
-				並且轉換狀態
-	----------------------------------------------*/
-	for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd){
-		Node_EnergyState(n);	//計算n的Energy
-	}
 }
 
 /***********************************************
