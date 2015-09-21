@@ -10,7 +10,7 @@ class EventInterval{
 	public:
 		EventInterval();
 		void Event();
-		void TSB();
+		void MEI();
 		void DIF();
 		void Rate_TO_Interval(int );
 		void Algorithm(int);

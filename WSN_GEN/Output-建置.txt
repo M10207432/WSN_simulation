@@ -1,0 +1,11 @@
+﻿1>------ 已開始建置: 專案: WSN_GEN, 組態: Debug Win32 ------
+1>  WSN_GEN.cpp
+1>f:\wsn_simulation\wsn_gen\wsn_gen.cpp(64): warning C4244: '引數' : 將 'time_t' 轉換為 'unsigned int'，由於型別不同，可能導致資料遺失
+1>f:\wsn_simulation\wsn_gen\wsn_gen.cpp(208): warning C4244: '正在初始化' : 將 'const double' 轉換為 'int'，由於型別不同，可能導致資料遺失
+1>f:\wsn_simulation\wsn_gen\wsn_gen.cpp(226): warning C4244: '正在初始化' : 將 'double' 轉換為 'int'，由於型別不同，可能導致資料遺失
+1>f:\wsn_simulation\wsn_gen\wsn_gen.cpp(227): warning C4244: '正在初始化' : 將 'const double' 轉換為 'int'，由於型別不同，可能導致資料遺失
+1>f:\wsn_simulation\wsn_gen\wsn_gen.cpp(254): warning C4244: '=' : 將 'double' 轉換為 'int'，由於型別不同，可能導致資料遺失
+1>f:\wsn_simulation\wsn_gen\wsn_gen.cpp(331): warning C4244: '=' : 將 'double' 轉換為 'int'，由於型別不同，可能導致資料遺失
+1>f:\wsn_simulation\wsn_gen\wsn_gen.cpp(347): error C2297: '%' : 不合法，右運算元具有型別 'double'
+1>f:\wsn_simulation\wsn_gen\wsn_gen.cpp(348): error C2297: '%' : 不合法，右運算元具有型別 'double'
+========== 建置: 0 成功、1 失敗、0 最新、0 略過 ==========

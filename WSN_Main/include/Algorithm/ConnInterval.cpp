@@ -28,7 +28,7 @@ void EventInterval::Algorithm(int Rateproposal){
 		Event();
 		break;
 	case 1:
-		TSB();
+		MEI();
 		break;
 	case 2:
 		DIF();
@@ -90,7 +90,7 @@ void EventInterval::Event(){
 	否
 		依照間隔buffersize做計算
 ==============================================*/
-void EventInterval::TSB(){
+void EventInterval::MEI(){
 	PacketQueue();		//先排Ready Queue
 	Packet *TSBpktQ=ReadyQ;
 	Packet *TSBpkt=Head->nextnd->pkt;

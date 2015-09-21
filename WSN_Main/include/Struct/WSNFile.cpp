@@ -22,9 +22,9 @@ fstream Powerfile;
 fstream Resultfile;
 
 string GENPath="..\\GENresult\\";
-string SchedulePath="..\\WSNresult\\DebugPower\\";
-string PowerPath="..\\WSNresult\\DebugPower\\";
-string ResultPath="..\\WSNresult\\DebugPower\\";
+string SchedulePath="..\\WSNresult\\IntervalDiv_TDMASchedule\\";
+string PowerPath="..\\WSNresult\\IntervalDiv_TDMASchedule\\";
+string ResultPath="..\\WSNresult\\IntervalDiv_TDMASchedule\\";
 
 /*===========================
 		將GEN的資料取入 且

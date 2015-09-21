@@ -1,0 +1,20 @@
+﻿已經開始建置於 2015/9/7 下午 08:48:01。
+     1>節點 2 (Build 目標) 上的專案 "F:\WSN_Simulation\WSN_GEN\WSN_GEN.vcxproj"。
+     1>ClCompile:
+         C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /Od /Oy- /D WIN32 /D _DEBUG /D _CONSOLE /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc110.pdb" /Gd /TP /analyze- /errorReport:prompt WSN_GEN.cpp
+         WSN_GEN.cpp
+     1>f:\wsn_simulation\wsn_gen\wsn_gen.cpp(71): warning C4244: '引數' : 將 'time_t' 轉換為 'unsigned int'，由於型別不同，可能導致資料遺失
+     1>f:\wsn_simulation\wsn_gen\wsn_gen.cpp(219): warning C4244: '正在初始化' : 將 'const double' 轉換為 'int'，由於型別不同，可能導致資料遺失
+     1>f:\wsn_simulation\wsn_gen\wsn_gen.cpp(237): warning C4244: '正在初始化' : 將 'double' 轉換為 'int'，由於型別不同，可能導致資料遺失
+     1>f:\wsn_simulation\wsn_gen\wsn_gen.cpp(238): warning C4244: '正在初始化' : 將 'const double' 轉換為 'int'，由於型別不同，可能導致資料遺失
+     1>f:\wsn_simulation\wsn_gen\wsn_gen.cpp(265): warning C4244: '=' : 將 'double' 轉換為 'int'，由於型別不同，可能導致資料遺失
+     1>f:\wsn_simulation\wsn_gen\wsn_gen.cpp(345): warning C4244: '=' : 將 'double' 轉換為 'int'，由於型別不同，可能導致資料遺失
+     1>f:\wsn_simulation\wsn_gen\wsn_gen.cpp(383): warning C4244: '=' : 將 'double' 轉換為 'int'，由於型別不同，可能導致資料遺失
+       Link:
+         C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"F:\WSN_Simulation\WSN_GEN\Debug\WSN_GEN.exe" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"F:\WSN_Simulation\WSN_GEN\Debug\WSN_GEN.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"F:\WSN_Simulation\WSN_GEN\Debug\WSN_GEN.lib" /MACHINE:X86 Debug\WSN_GEN.obj
+         WSN_GEN.vcxproj -> F:\WSN_Simulation\WSN_GEN\Debug\WSN_GEN.exe
+     1>專案 "F:\WSN_Simulation\WSN_GEN\WSN_GEN.vcxproj" (Build 目標) 建置完成。
+
+建置成功。
+
+經過時間 00:00:00.72

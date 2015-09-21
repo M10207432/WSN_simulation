@@ -739,6 +739,7 @@ void NodeBufferSet(Node * SettingNode){
 
 	}
 }
+
 /***********************************************
 	先做EIMA上的node 傳輸通知(依照EDF方式)
 	對node做傳輸
@@ -746,7 +747,6 @@ void NodeBufferSet(Node * SettingNode){
 	node->State為被通知的node
 	node->EvtArrival為event 抵達
 ***********************************************/
-
 void FrameEDFSchedule(){
 	
 	TDMATable *table=TDMA_Tbl;
@@ -772,7 +772,7 @@ void FrameEDFSchedule(){
 			}
 		}
 
-		Work_tbl->ConnNode->State="Transmission";
+		Work_tbl->ConnNode->State="Notify";
 		Head->FrameSize=Work_tbl->Size;
 
 		Work_tbl->Deadline=Work_tbl->Deadline+Work_tbl->Period;
@@ -780,6 +780,9 @@ void FrameEDFSchedule(){
 		Head->FrameSize--;		
 	}
 	
+	if(Timeslot==1849){
+		int y=0;
+	}
 	/*----------------------------------------------
 		ConnSet中被通知的Node做對應傳輸或SCAN
 		Notify & Scan可同時運作
@@ -802,8 +805,9 @@ void FrameEDFSchedule(){
 		if(n->State!="Sleep"){
 			bool eventarrival=false;
 			
-			if(n->EvtArrival && n->State=="Transmission" && (Head->RecvNode==NULL || Head->RecvNode==n)){
+			if(n->EvtArrival && n->State=="Notify" && (Head->RecvNode==NULL || Head->RecvNode==n)){
 				Head->RecvNode=n;	//Head->RecvNode切換
+				n->State="Transmission";
 			}
 			
 			//-------------------進行傳輸 (Head->RecvNode要確認目前沒node或為當前node)
@@ -825,7 +829,7 @@ void FrameEDFSchedule(){
 
 		//---------------------------------------Power consumption & State切換
 		Node_EnergyState(n);	//計算n的Energy
-		if(n->NodeBuffer->load==0){
+		if(n->NodeBuffer->load==0 && n->State=="Transmission"){
 			n->State="Sleep";
 		}
 	}
@@ -870,25 +874,22 @@ void TDMASchedule(){
 		}
 
 		Work_tbl->Currentflag=true;
-		Work_tbl->ConnNode->State="Transmission";
+		Work_tbl->ConnNode->State="Notify";
 		Head->FrameSize=Work_tbl->Size;
 
 		Work_tbl->Deadline=Work_tbl->Deadline+Work_tbl->Period;
 	}else{
 		Head->FrameSize--;
-		/*
-		if(Head->FrameSize<0){
-			cout<<"Frame size is less than zero"<<endl;
-			system("PAUSE");
-		}
-		*/
 	}
 	
 	/*----------------------------------------------
 		ConnSet中被通知的Node做對應傳輸或SCAN
 		Notify & Scan可同時運作
+
+		node是否有event arrival		(node->EvtArrival)
+		node是否有被通知				(Head->RecvNode, call BLE_EDF(node))
+		node energy consumption		(node->State)
 	----------------------------------------------*/
-	
 	for(Node *n=Head->nextnd; n!=NULL; n=n->nextnd){
 		
 		//-------------------State為Transmission, 只在event arrival 時才做Buffer規劃
@@ -899,22 +900,24 @@ void TDMASchedule(){
 			n->EvtArrival =false;
 		}
 
+		//-------------------進行傳輸 [有被通知(node->State=="Transmission") 且 event arrival(node->EvtArrival)]
 		if(n->State!="Sleep"){
 			bool eventarrival=false;
 			
-			if(n->EvtArrival && n->State=="Transmission" && (Head->RecvNode==NULL || Head->RecvNode==n)){
-				Head->RecvNode=n;
+			if(n->EvtArrival && n->State=="Notify" && (Head->RecvNode==NULL || Head->RecvNode==n)){
+				Head->RecvNode=n;	//Head->RecvNode切換
+				n->State="Transmission";
 			}
 			
 			//-------------------進行傳輸 (Head->RecvNode要確認目前沒node或為當前node)
 			if(Head->RecvNode==n && NotifyFlag){
 				BLE_EDF(n);				//對n做傳輸
-				Node_EnergyState(n);	//計算n的Energy，且若Buffer做完傳輸即切換狀態(一定在在此切換，若提前切換State會有把transmission變為Sleep)
 
 				if(n->NodeBuffer->load==0){
 					Head->RecvNode=NULL;
-					n->State="Sleep";
 				}
+				
+				NotifyFlag=false;
 			}
 
 			//-------------------State為Scan
@@ -922,13 +925,11 @@ void TDMASchedule(){
 				//n->ScanDuration--;
 			}
 		}
-	}
 
-	/*----------------------------------------------
-				計算Power consumption
-				並且轉換狀態
-	----------------------------------------------*/
-	for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd){
-		Node_EnergyState(n);	//計算n的Energy，且若Buffer做完傳輸即切換狀態
+		//---------------------------------------Power consumption & State切換
+		Node_EnergyState(n);	//計算n的Energy
+		if(n->NodeBuffer->load==0 && n->State=="Transmission"){
+			n->State="Sleep";
+		}
 	}
 }

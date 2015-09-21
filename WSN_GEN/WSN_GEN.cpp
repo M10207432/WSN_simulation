@@ -5,6 +5,9 @@
 #include<fstream>
 #include <string.h>
 #include <string>
+#define transmission_time 10
+#define payload 20
+
 using namespace std;
 
 /*=================================
@@ -13,7 +16,6 @@ using namespace std;
 struct Node{
 	double coor_x,coor_y;//座標
 	double distanceto_BS;//到Base station 距離
-	double energy;
 	double radus;
 	short int hop;		//range 1~3
 
@@ -26,39 +28,40 @@ struct Packet{
 	int load;
 	double period;
 	double utilization;
-	int	 pirority;
+	double time;
 
 	short int hop;		//range 1~3
 	int destination;	//Nest node
-	double rate;
 
 	struct Packet* nextpkt;
 	struct Packet* prepkt;
 };
 void create();
+
 /*=================================
 		Global value
 ==================================*/
-short int Max_X_Axis = 100;
-short int Max_Y_Axis = 100;
-int Level1_Nodenum = 5;
-int Level2_Nodenum = 5;
-int pktnum=10;
-int nodenum=Level1_Nodenum+Level2_Nodenum;
-
-const double leastperiod=100;
-const double largestperiod=1000;
-const double Hyperperiod=1000;
-const float MIN_Uti=1.0;
-const float MAX_Uti=5.0;
-const short int Set=100;
-
+const short int Max_X_Axis = 100;	//最大X軸範圍
+const short int Max_Y_Axis = 100;	//最大Y軸範圍
+const int Level1_Nodenum = 3;		//第一層Node數量<ConnNode>
+const int Level2_Nodenum = 0;		//第二層Node數量<AdvNode>
+const int pktnum=5;				//每個node上的封包數
+const double leastperiod=80;	//period最小值
+const double largestperiod=1000;//period最大值
+const double Hyperperiod=10000;	
+const float MIN_Uti=1.0;		//GEN 利用率的起點
+const float MAX_Uti=5.0;		//GEN 利用率的終點
+const float U_interval=1;		//利用率間距
+const short int Set=100;			//每一利用的Set數
 string GENfile="..\\GENresult\\";//放到前一目錄下的GENresult目錄，產生txt檔
 char Resultfile[]="..\\GENresult\\WSNGEN.txt";//放到前一目錄下的GENresult目錄，產生txt檔
+
+int nodenum=Level1_Nodenum;// without Level2_Nodenum
 float Total_Uti=1.0;
 const double Max_pktuti=0.9;
 double tmp_totaluti=0;
 int Gobackcount=0;
+
 Node* HEAD=new Node;			//總頭HEAD
 Node* node=new Node;
 Packet* packet=new Packet;
@@ -67,7 +70,7 @@ int main(void){
 	
 	srand(time(NULL));			//隨機種子
 	
-	for(float U=MIN_Uti;U<=MAX_Uti;U++){
+	for(float U=MIN_Uti;U<=MAX_Uti;U=U+U_interval){
 		Total_Uti=U;
 
 		//放入GEN的檔名
@@ -104,12 +107,12 @@ int main(void){
 							寫入資訊 TXT
 			==================================================*/
 			double tmpu=0;
+			tmp_totaluti=0;
 			Packet* tmppkt=new Packet;
 			Node* tmpnode=new Node;
 			tmpnode=HEAD->nextnd;
-			int nodeid=1;
-			int packetid=1;
-			fp<<nodenum<<" "<<pktnum<<" "<<Hyperperiod<<endl;
+
+			fp<<Level1_Nodenum<<" "<<Level2_Nodenum<<" "<<pktnum<<" "<<Hyperperiod<<endl;
 			while(tmpnode!=NULL){
 				tmppkt=tmpnode->pkt;
 
@@ -126,14 +129,15 @@ int main(void){
 					cout<<tmppkt->load<<endl;
 					cout<<tmppkt->period<<endl;
 					tmpu=tmpu+tmppkt->utilization;
-
+					tmp_totaluti=tmp_totaluti+(tmppkt->time/tmppkt->period);
+					
 					tmppkt=tmppkt->nextpkt;
 				}
-				packetid=1;
 				if(tmpnode!=NULL){
 					tmpnode=tmpnode->nextnd;
 				}
 			}
+
 			cout<<"Totaluti:"<<tmp_totaluti<<endl;
 			fp<<"Totaluti:"<<tmp_totaluti<<endl;
 			cout<<"=========="<<setcount<<endl;
@@ -150,7 +154,7 @@ int main(void){
 }
 
 void create(){
-	bool Done_flag=false;
+	bool Done_flag=false;					//GEN結束
 	delete HEAD;delete node;delete packet;
 	HEAD=new Node();
 	node=new Node();
@@ -159,6 +163,7 @@ void create(){
 	/*==================================================
 					建立Link list
 					Node & Packet
+				分配ConnNode的廣播封包
 	==================================================*/
 	/*-------------------------
 		Gen node(Linklist)
@@ -334,8 +339,13 @@ void create(){
 		while(node!=NULL){
 			packet=node->pkt;
 			while(packet!=NULL){
-				packet->load=packet->utilization * packet->period;
-				if(packet->load==0)
+				
+				packet->time=(packet->utilization * packet->period);
+				packet->time=(int(packet->time)/10)*10;
+				packet->load=(packet->time/transmission_time)*payload;
+				packet->utilization=packet->time/packet->period;
+
+				if(packet->load==0)   
 					Done_flag=false;
 				if(tmp_totaluti!=Total_Uti)
 					Done_flag=false;
@@ -345,6 +355,78 @@ void create(){
 		}
 	}
 
+	/*==================================================
+					分配AdvNode的廣播封包
+	==================================================*/
+	//===================================================Link list
+	int countLevel2=Level2_Nodenum;
+	node=HEAD->nextnd;
+	while(node->nextnd!=NULL){
+		node=node->nextnd;
+	}
+	while(countLevel2>0){
+		Node *nextnode=new Node;
+		Node *prenode=node;
+
+		node->nextnd=nextnode;
+		node=nextnode;
+		node->prend=prenode;
+		node->nextnd=NULL;
+
+		//只能有一個封包, 只能有20byte(傳輸時間為10ms) period先設為最大
+		node->pkt=new Packet;
+		
+		node->hop=2;
+		packet=node->pkt;
+		packet->period=largestperiod;
+		packet->time=transmission_time;
+		packet->load=(packet->time/transmission_time)*payload;
+		packet->utilization=packet->time/packet->period;
+
+		node->pkt->nextpkt=NULL;
+		node->pkt->prepkt=NULL;
+
+		//node count 減一
+		countLevel2--;
+	}
+	/*
+	//===================================================Check 是否符合利用率,不合則修改AdvNode的packet
+	node=HEAD->nextnd;
+	double tmp_u=0;
+	while(node!=NULL){
+		packet=node->pkt;
+		while(packet!=NULL){
+			tmp_u=tmp_u+packet->utilization;
+			packet=packet->nextpkt;
+		}
+		node=node->nextnd;
+	}
+
+	node=HEAD->nextnd;
+	if(tmp_u<Total_Uti){
+		while(node!=NULL){
+			//修改第二層AdvNode
+			if(node->hop==2){
+				tmp_u=tmp_u-node->pkt->utilization;//先減掉原本U
+
+				double tmp_period=node->pkt->period;
+				tmp_period--;
+				while(int(Hyperperiod) % int(tmp_period)!=0){
+					if(tmp_period>leastperiod)
+						tmp_period--;
+				}
+				
+				node->pkt->period=tmp_period;
+				node->pkt->utilization=node->pkt->time/node->pkt->period;
+				tmp_u=tmp_u+node->pkt->utilization;
+			}
+			if(tmp_u>Total_Uti)
+				break;
+
+			node=node->nextnd;
+		}
+	}
+	*/
 	/*==================================================
 					分配各節點位置
 	==================================================*/
