@@ -21,5 +21,7 @@ void BLE_EDF(Node *);
 
 void FrameEDFSchedule();
 void TDMASchedule();
+void FrameEDFSchedule_RD();
 
 void Schedule(int);
+void CheckPkt();

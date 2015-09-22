@@ -9,6 +9,8 @@
 #include "WSNEnergy.h"
 #include "../Schedule/FlowSchedule.h"
 
+#undef  _ShowLog
+
 using namespace std;
 
 /*===========================
@@ -18,13 +20,13 @@ using namespace std;
 string filename;
 fstream GENfile;
 fstream Schdulefile;
-fstream Powerfile;
+fstream Finalfile;
 fstream Resultfile;
 
 string GENPath="..\\GENresult\\";
-string SchedulePath="..\\WSNresult\\IntervalDiv_TDMASchedule\\";
-string PowerPath="..\\WSNresult\\IntervalDiv_TDMASchedule\\";
-string ResultPath="..\\WSNresult\\IntervalDiv_TDMASchedule\\";
+string SchedulePath="..\\WSNresult\\DebugPower\\";
+string FinalPath="..\\WSNresult\\DebugPower\\";
+string ResultPath="..\\WSNresult\\DebugPower\\";
 
 /*===========================
 		將GEN的資料取入 且
@@ -42,6 +44,7 @@ void CreateFile(float U,int Set){
 	GENfile.open(GENBuffer, ios::in);	//開啟檔案.寫入狀態
 	if(!GENfile){//如果開啟檔案失敗，fp為0；成功，fp為非0
 		cout<<"Fail to open file: "<<GENBuffer<<endl;
+		
 		system("PAUSE");
 	}
 
@@ -52,7 +55,7 @@ void CreateFile(float U,int Set){
 
 	Schdulefile.open(ScheduleFileBuffer, ios::out);	//開啟檔案.寫入狀態
 	if(!Schdulefile){//如果開啟檔案失敗，fp為0；成功，fp為非0
-		cout<<"Fail to open file: "<<ScheduleFileBuffer<<endl;
+		cout<<"Fail to open Schedule file: "<<ScheduleFileBuffer<<endl;		
 		system("PAUSE");
 	}
 
@@ -63,8 +66,19 @@ void CreateFile(float U,int Set){
 
 	Resultfile.open(ResultBuffer, ios::out);	//開啟檔案.寫入狀態
 	if(!Resultfile){//如果開啟檔案失敗，fp為0；成功，fp為非0
-		cout<<"Fail to open file: "<<ResultBuffer<<endl;
+		cout<<"Fail to open Result file: "<<ResultBuffer<<endl;
 		system("PAUSE");
+	}
+
+	//========================開啟Finalfile
+	string FinalBuffer=FinalPath;
+	FinalBuffer.append("FinalResult.txt");
+	if(Finalfile.is_open()==false){
+		Finalfile.open(FinalBuffer, ios::out);	//開啟檔案.寫入狀態
+		if(!Finalfile){//如果開啟檔案失敗，fp為0；成功，fp為非0
+			cout<<"Fail to open Final file: "<<FinalBuffer<<endl;
+			system("PAUSE");
+		}
 	}
 }
 
@@ -78,18 +92,25 @@ void SaveFile(short int setnum){
 		node->energy=node->energy*Vcc;
 		node->lifetime=BatteryCapacity/((node->energy/Vcc)/(Hyperperiod*0.01));
 
-		cout<<"Node"<<node->id<<" E:"<<node->energy<<" Lifetime:"<<node->lifetime<<endl;
+		#ifdef _ShowLog
+				cout<<"Node"<<node->id<<" E:"<<node->energy<<" Lifetime:"<<node->lifetime<<endl;
+		#endif
+
 		totalenergy=totalenergy+node->energy;
 		node=node->nextnd;
 	}
 			
 	Resultfile<<"TotalEnergy:"<<totalenergy<<endl;
-	cout<<"TotalEnergy:"<<totalenergy<<endl;
+	#ifdef _ShowLog
+		cout<<"TotalEnergy:"<<totalenergy<<endl;
+	#endif
 	
 	//---------------------------------------------------TDMA table
 	TDMATable *FlowTable=TDMA_Tbl;
 	while(FlowTable!=NULL){
-		cout<<"S"<<FlowTable->slot<<" n"<<FlowTable->n1->id<<endl;
+		#ifdef _ShowLog
+				cout<<"S"<<FlowTable->slot<<" n"<<FlowTable->n1->id<<endl;
+		#endif
 		Resultfile<<"S"<<FlowTable->slot<<" n"<<FlowTable->n1->id<<endl;
 
 		FlowTable=FlowTable->next_tbl;
@@ -130,12 +151,15 @@ void SaveFile(short int setnum){
 
 		node=node->nextnd;
 	}
-
+	#ifdef _ShowLog
 	cout<<"	FrameSize, FramePeriod"<<endl;
+	#endif
 	for(FrameTable* Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
-		cout<<"Frame"	<<Ftbl->id<<":"
-						<<Ftbl->Size<<", "
-						<<Ftbl->Period<<endl;
+	#ifdef _ShowLog
+			cout<<"Frame"	<<Ftbl->id<<":"
+							<<Ftbl->Size<<", "
+							<<Ftbl->Period<<endl;
+	#endif
 		Resultfile<<"Frame"	<<Ftbl->id<<":"
 							<<Ftbl->Size<<", "
 							<<Ftbl->Period<<endl;
@@ -143,7 +167,9 @@ void SaveFile(short int setnum){
 
 	if(Meetflag==true){
 		Resultfile<<"Meet Deadline:MEET"<<endl;
-		cout<<"Meet Deadsline:MEET"<<endl;
+		#ifdef _ShowLog
+				cout<<"Meet Deadsline:MEET"<<endl;
+		#endif
 				
 		node=Head->nextnd;
 		SetNode=SetHead->nextnd;
@@ -160,12 +186,16 @@ void SaveFile(short int setnum){
 	}
 	else{
 		Resultfile<<"Meet Deadline:MISS"<<endl;
+		#ifdef _ShowLog
 		cout<<"Meet Deadline:MISS"<<endl;
+		#endif
 	}
 	
 	Resultfile<<"==============================================="<<setnum<<endl;
 	Schdulefile<<"=============================================="<<setnum<<endl;
+	#ifdef _ShowLog
 	cout<<"=============================================="<<setnum<<endl;
+	#endif
 }
 
 /*===========================
@@ -184,18 +214,23 @@ void SaveSet(int Set){
 	cout<<"AverageEnergy="<<AverageE/Meetcount<<endl;
 	cout<<"=============================================="<<endl;
 
-	Resultfile<<"FinalResult"<<endl;
-	Resultfile<<"Meet="<<Meetcount<<endl;
-	Resultfile<<"Miss="<<Set-Meetcount<<endl;
-	Resultfile<<"MeetRatio="<<Meetcount/Set<<endl;
+	Finalfile<<"FinalResult"<<endl;
+	Finalfile<<"Meet="<<Meetcount<<endl;
+	Finalfile<<"Miss="<<Set-Meetcount<<endl;
+	Finalfile<<"MeetRatio="<<Meetcount/Set<<endl;
 	SetNode=SetHead->nextnd;
 	while(SetNode!=NULL){
-		Resultfile<<"Node"<<SetNode->id<<"="<<SetNode->avgenergy/Meetcount<<endl;
+		Finalfile<<"Node"<<SetNode->id<<"="<<SetNode->avgenergy/Meetcount<<endl;
 		SetNode=SetNode->nextnd;
 	}
-	Resultfile<<"AverageEnergy="<<AverageE/Meetcount<<endl;
+	Finalfile<<"AverageEnergy="<<AverageE/Meetcount<<endl;
+	Finalfile<<"=============================================="<<endl;
 
 	GENfile.close();
 	Schdulefile.close();
 	Resultfile.close();
+}
+
+void CloseFinal(){
+	Finalfile.close();
 }

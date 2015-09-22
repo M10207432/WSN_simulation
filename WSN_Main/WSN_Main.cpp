@@ -25,10 +25,11 @@ const float MIN_Uti=1.0;
 const float MAX_Uti=5.0;
 const short int Set=100;
 
+bool sche_flag=true;					//是否要測試schedulability
 short int Rateproposal=1;				//AssignRate()中的方法編號 0=>Event, 1=>MEI, 2=>DIF 
 short int TDMAproposal=0;				//TDMA的assign方法 0=>自己的方法(只有一個superslot), 1=>Node base方法 (會再接續加入superslot)
-short int TDMA_Rateproposal=1;			//TDMA和connection interval上的校正 0=>EIMA, 1=>選最小interval除TDMA size
-short int TDMAscheduleproposal=1;		//Gateway 通知node傳輸順序 0=>做EDF排程 1=>直接照TDMA表做傳輸
+short int TDMA_Rateproposal=0;			//TDMA和connection interval上的校正 0=>EIMA, 1=>選最小interval除TDMA size
+short int TDMAscheduleproposal=0;		//Gateway 通知node傳輸順序 0=>做EDF排程 1=>直接照TDMA表做傳輸
 
 bool preemptionenable=true;			//設定可否preemption
 int Flowinterval=0;					//觸發進入flow的conneciton interval
@@ -161,22 +162,23 @@ int main(){
 			/*=========================
 				Schedulability test
 			=========================*/
-			Schedulability();
-
+			if(sche_flag){
+				Schedulability();
+			}
 			/*==========================
 				EDF scheduling
 				(FlowSchedule.cpp)
 				<Head, TDMA_Tbl> 
 				<NotifyNode, NotifyTable>
 			==========================*/
-			
+			/*
 			int FlowSlot=0;			//先由哪一Slot開始傳(TDMATable)
 			bool Flow_flag=false;	//判斷有無碰撞(ConflictEdge)
 			Headflow->pkt=NULL;		//一開始的flow中包含的封包設定為NULL
 			NotifyNode=NULL;
 			NotifyTable=TDMA_Tbl;
 			NotifyTable->count=ceil(NotifyTable->n1->eventinterval);
-			
+			*/
 			Head->RecvNode=NULL;		//Head 接收節點要設定為NULL
 			Head->FrameSize=0;
 			TDMA_Tbl->currslot=true;	//一開始第一個要為true
@@ -197,6 +199,7 @@ int main(){
 
 		SaveSet(Set);//(WSNFile.cpp)
 	}
+	CloseFinal();
 
 	system("PAUSE");
 	return 0;

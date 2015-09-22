@@ -12,6 +12,8 @@
 #include "ConnInterval.h"
 #include "../Schedule/FlowSchedule.h"
 
+#undef  _ShowLog
+
 using namespace std;
 
 EventInterval::EventInterval(){
@@ -344,7 +346,7 @@ void EventInterval::EIMA(){
 			Ftbl->Deadline=tbl->n1->eventinterval;
 			Ftbl->Size=Ftbl->Period/nodelevel1;
 			Ftbl->Utilization=1/nodelevel1;
-
+			
 			Ftbl->ConnNode= tbl->n1;			//指向此Conn Node
 			tbl->n1->eventinterval=Ftbl->Size;	//更新node上的connection interval
 
@@ -388,6 +390,7 @@ void EventInterval::EIMA(){
 	}
 	
 	//---------------------------------Print 出資訊
+#ifdef _Showlog
 	for(Node* node=Head->nextnd; node!=NULL; node=node->nextnd){
 		cout<<	"Node"<<node->id<<"=> "<<
 				"Interval="<<node->eventinterval<<", "<<
@@ -400,6 +403,7 @@ void EventInterval::EIMA(){
 			" size="<< Ftbl->Size<<","<<
 			" period="<<Ftbl->Period<<endl;
 	}
+#endif
 }
 /*==================================
 		Small Interval Divide
@@ -491,6 +495,8 @@ void EventInterval::IntervalDivide(){
 	}
 
 	//---------------------------------Print 出資訊
+	
+	#ifdef _Showlog
 	for(Node* node=Head->nextnd; node!=NULL; node=node->nextnd){
 		cout<<	"Node"<<node->id<<"=> "<<
 				"Interval="<<node->eventinterval<<", "<<
@@ -503,6 +509,7 @@ void EventInterval::IntervalDivide(){
 			" size="<< Ftbl->Size<<","<<
 			" period="<<Ftbl->Period<<endl;
 	}
+	#endif
 }
 /*==================================
 		連接順序

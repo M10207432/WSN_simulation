@@ -15,6 +15,8 @@
 #include "FlowSchedule.h"
 #include "../Struct/WSNEnergy.h"
 
+#undef  _ShowLog
+
 using namespace std;
 
 void Schedule(int propose){
@@ -25,7 +27,12 @@ void Schedule(int propose){
 	case 1:
 		TDMASchedule();
 		break;
+	case 2:
+		FrameEDFSchedule_RD();
+		break;
 	}
+
+	CheckPkt();
 }
 
 /*==========================
@@ -215,6 +222,7 @@ void FlowEDF(){
 			
 		}
 }
+
 /*==========================================
 			Arrange Queue
 {ReadyQ & WaitQ is assign by pkt->readyflag}
@@ -222,7 +230,6 @@ void FlowEDF(){
 	先建立總total的Packet Queue
 	在分配給各自的node
 ==========================================*/
-
 void PacketQueue(){
 	
 	Packet *camparepkt;
@@ -367,6 +374,7 @@ void PacketQueue(){
 		tmp_nodepkt=tmp_nodepkt->readynextpkt;
 	}
 }
+
 /*=============================================	
 		建立好Buffer上的packet
 	pkt link list, load, packet size
@@ -522,9 +530,26 @@ void Schedulability(){
 			}
 		}
 	}
-
-	cout<<"Reassign Done"<<endl;
+	#ifdef _Showlog
+		cout<<"Reassign Done"<<endl;
+	#endif
 }
+/*=======================================
+			Check every pkt
+=======================================*/
+void CheckPkt(){
+
+	for(Packet *pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
+		if(pkt->deadline<=Timeslot){
+			Schdulefile<<Timeslot<<" ";
+			Schdulefile<<"Node"<<pkt->nodeid<<" (PKT"<<pkt->id<<" Miss deadline"<<" Deadline "<<pkt->deadline<<")";
+			Schdulefile<<endl;
+
+			Meetflag=false;
+		}
+	}
+}
+
 
 void BLESchedule(int FlowSlot, bool Flow_flag){
 	
@@ -603,8 +628,9 @@ void BLE_EDF(Node *node){
 
 				//判斷是否miss deadline
 				if((Timeslot)>=packet->deadline){
-							
+#ifdef _ShowLog
 					cout<<"(PKT"<<packet->id<<" Miss deadline"<<" Deadline "<<packet->deadline<<")";
+#endif
 					Schdulefile<<"(PKT"<<packet->id<<" Miss deadline"<<" Deadline "<<packet->deadline<<")";
 
 					Meetflag=false;
@@ -907,6 +933,113 @@ void TDMASchedule(){
 			if(n->EvtArrival && n->State=="Notify" && (Head->RecvNode==NULL || Head->RecvNode==n)){
 				Head->RecvNode=n;	//Head->RecvNode切換
 				n->State="Transmission";
+			}
+			
+			//-------------------進行傳輸 (Head->RecvNode要確認目前沒node或為當前node)
+			if(Head->RecvNode==n && NotifyFlag){
+				BLE_EDF(n);				//對n做傳輸
+
+				if(n->NodeBuffer->load==0){
+					Head->RecvNode=NULL;
+				}
+				
+				NotifyFlag=false;
+			}
+
+			//-------------------State為Scan
+			if(n->State=="Scan"){
+				//n->ScanDuration--;
+			}
+		}
+
+		//---------------------------------------Power consumption & State切換
+		Node_EnergyState(n);	//計算n的Energy
+		if(n->NodeBuffer->load==0 && n->State=="Transmission"){
+			n->State="Sleep";
+		}
+	}
+}
+
+/***********************************************
+	先做EIMA上的node 傳輸通知(依照EDF方式)
+	對node做傳輸
+
+	node->State為被通知的node
+	node->EvtArrival為event 抵達
+
+	(Frame Deadline assignment is connection interval between tx event to next event.)
+	<D=timeslot+Tc, at event arrival>
+***********************************************/
+void FrameEDFSchedule_RD(){
+	
+	TDMATable *table=TDMA_Tbl;
+	Node *node=Head->nextnd;
+	short int notiyfyslot=0;
+	short int MaxFrameSize=0;
+	bool allframeset=false;		//確認有對其中一個frame下做currslot enable
+	bool NotifyFlag=true;		//確認傳輸只能一次(ConnSet)
+	
+	/*----------------------------------------------
+		Head對ConnNode下指令，在計算後的FrameSize內
+		FrameSize若計算完畢立即換下一TDMA的frame做事
+		對此frame上的node做state上的變化
+	----------------------------------------------*/
+	
+	if(Head->FrameSize<=0){ //(Head->RecvNode目前是先擋住，但之後要對FrameSize做修改)
+		
+		//找最小FrameTable的deadline
+		FrameTable *Work_tbl=FrameTbl;
+		for(FrameTable *Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
+			if(Work_tbl->Deadline > Ftbl->Deadline){
+				Work_tbl=Ftbl;
+			}
+		}
+
+		Work_tbl->ConnNode->State="Notify";
+		Head->FrameSize=Work_tbl->Size;
+
+		//Work_tbl->Deadline=Work_tbl->Deadline+Work_tbl->Period;
+	}else{
+		Head->FrameSize--;		
+	}
+	
+	if(Timeslot==1452){
+		int y=0;
+	}
+	/*----------------------------------------------
+		ConnSet中被通知的Node做對應傳輸或SCAN
+		Notify & Scan可同時運作
+
+		node是否有event arrival		(node->EvtArrival)
+		node是否有被通知				(Head->RecvNode, call BLE_EDF(node))
+		node energy consumption		(node->State)
+	----------------------------------------------*/
+	for(Node *n=Head->nextnd; n!=NULL; n=n->nextnd){
+		
+		//-------------------State為Transmission, 只在event arrival 時才做Buffer規劃
+		if(Timeslot % int(n->eventinterval)==0){
+			NodeBufferSet(n);		//整理好n中的NodeBuffer
+			n->EvtArrival =true;	//對此node設定EvtArrival
+		}else{
+			n->EvtArrival =false;
+		}
+
+		//-------------------進行傳輸 [有被通知(node->State=="Transmission") 且 event arrival(node->EvtArrival)]
+		if(n->State!="Sleep"){
+			bool eventarrival=false;
+			
+			if(n->EvtArrival && n->State=="Notify" && (Head->RecvNode==NULL || Head->RecvNode==n)){
+				Head->RecvNode=n;	//Head->RecvNode切換
+				n->State="Transmission";
+
+				//Deadline assignment
+				
+				for(FrameTable *Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
+					if(Ftbl->ConnNode==n){
+						Ftbl->Deadline=Timeslot+Ftbl->Period;
+					}
+				}
+				
 			}
 			
 			//-------------------進行傳輸 (Head->RecvNode要確認目前沒node或為當前node)

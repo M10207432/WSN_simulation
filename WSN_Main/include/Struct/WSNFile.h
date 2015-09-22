@@ -11,3 +11,4 @@ extern double AverageE;
 void CreateFile(float ,int);
 void SaveFile(short int);
 void SaveSet(int );
+void CloseFinal();
