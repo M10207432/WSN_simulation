@@ -19,7 +19,7 @@
 using namespace std;
 
 /*=================================
-		Global value
+		Experiment Setting
 ==================================*/
 const float MIN_Uti=1.0;
 const float MAX_Uti=5.0;
@@ -31,6 +31,9 @@ short int TDMAproposal=0;				//TDMA的assign方法 0=>自己的方法(只有一個superslot)
 short int TDMA_Rateproposal=0;			//TDMA和connection interval上的校正 0=>EIMA, 1=>選最小interval除TDMA size
 short int TDMAscheduleproposal=0;		//Gateway 通知node傳輸順序 0=>做EDF排程 1=>直接照TDMA表做傳輸
 
+/*=================================
+		Global value
+==================================*/
 bool preemptionenable=true;			//設定可否preemption
 int Flowinterval=0;					//觸發進入flow的conneciton interval
 int Pktsize=0;							//計算IntervalPower的pkt num
@@ -157,7 +160,7 @@ int main(){
 			Interval & TDMA adjustment 
 			==========================*/
 			Interval_obj.Interval_TDMA_Algorithm(TDMA_Rateproposal);		//包含TDMA考量,做node上的interval修改 且含有Scan duration 計算
-			Interval_obj.ConnectionPriority();			//連接順序,設定EventTime
+			Interval_obj.ConnectionPriority();								//連接順序,設定EventTime
 
 			/*=========================
 				Schedulability test
@@ -171,14 +174,6 @@ int main(){
 				<Head, TDMA_Tbl> 
 				<NotifyNode, NotifyTable>
 			==========================*/
-			/*
-			int FlowSlot=0;			//先由哪一Slot開始傳(TDMATable)
-			bool Flow_flag=false;	//判斷有無碰撞(ConflictEdge)
-			Headflow->pkt=NULL;		//一開始的flow中包含的封包設定為NULL
-			NotifyNode=NULL;
-			NotifyTable=TDMA_Tbl;
-			NotifyTable->count=ceil(NotifyTable->n1->eventinterval);
-			*/
 			Head->RecvNode=NULL;		//Head 接收節點要設定為NULL
 			Head->FrameSize=0;
 			TDMA_Tbl->currslot=true;	//一開始第一個要為true

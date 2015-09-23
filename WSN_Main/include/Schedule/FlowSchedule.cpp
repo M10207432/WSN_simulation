@@ -534,8 +534,10 @@ void Schedulability(){
 		cout<<"Reassign Done"<<endl;
 	#endif
 }
+
 /*=======================================
 			Check every pkt
+			Have to Meet Deadline
 =======================================*/
 void CheckPkt(){
 

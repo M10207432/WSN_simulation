@@ -1,6 +1,7 @@
 #ifndef CONNINTERVAL_H
 #define CONNINTERVAL_H
 
+#include "../Struct/WSNStruct.h"
 extern double Connectioninterval;
 extern double DIFMinperiod;
 extern short int Rateproposal;
@@ -10,7 +11,7 @@ class EventInterval{
 	public:
 		EventInterval();
 		void Event();
-		void MEI();
+		void MEI(Node *);
 		void DIF();
 		void Rate_TO_Interval(int );
 		void Algorithm(int);
@@ -20,6 +21,7 @@ class EventInterval{
 		void IntervalDivide();
 
 		void ConnectionPriority();
+		void IntervalReassign();
 };
 
 #endif

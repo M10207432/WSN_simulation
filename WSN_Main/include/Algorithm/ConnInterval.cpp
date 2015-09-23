@@ -30,7 +30,7 @@ void EventInterval::Algorithm(int Rateproposal){
 		Event();
 		break;
 	case 1:
-		MEI();
+		MEI(NULL);
 		break;
 	case 2:
 		DIF();
@@ -39,13 +39,11 @@ void EventInterval::Algorithm(int Rateproposal){
 		break;
 	}
 
-	packet=Head->nextnd->pkt;
-	while(packet!=NULL){
+	for(Packet *pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
 		packet->exeload=packet->load;
 		packet->exehop=packet->hop;
-
-		packet=packet->nextpkt;
 	}
+	
 }
 
 /*==============================================
@@ -92,71 +90,126 @@ void EventInterval::Event(){
 	否
 		依照間隔buffersize做計算
 ==============================================*/
-void EventInterval::MEI(){
-	PacketQueue();		//先排Ready Queue
+void EventInterval::MEI(Node * MEINode){
 	Packet *TSBpktQ=ReadyQ;
 	Packet *TSBpkt=Head->nextnd->pkt;
 	double Tc=0;
 	
-	if(false){//(2*Minsize+Maxsize) > 2*Maxbuffersize (提供給non-preemption 用)
-		//Tc=floor(Minperiod/2);
-	}else{
-		PacketQueue();		//先排Ready Queue
+	/*------------------------------------------
+		先做好所有Conn/Adv Node
+		上的connection/advertisement interval
+	------------------------------------------*/
+	PacketQueue();		//先排Ready Queue
+	Node *TSBnode=Head->nextnd;
+	while(TSBnode!=NULL){
+		Packet *TSBpkt=TSBnode->pktQueue;
 
-		Node *TSBnode=Head->nextnd;
-		while(TSBnode!=NULL){
-			Packet *TSBpkt=TSBnode->pktQueue;
-			int nodehop=TSBnode->hop;
-			double Totalsize=0;
-			double PacketSize=0;
-			double totalevent=0;
-			double Tslot=0;
-			bool doneflag=false;
+		if(MEINode!=NULL){
+			TSBpkt=MEINode->pktQueue;
+		}
+		int nodehop=TSBnode->hop;
+		double Totalsize=0;
+		double PacketSize=0;
+		double totalevent=0;
+		double Tslot=0;
+		bool doneflag=false;
 
-			//======================找Minperiod, 設定為Tc init
-			Tc=TSBpkt->period;
+		//======================找Minperiod, 設定為Tc init
+		Tc=TSBpkt->period;
 
-			//======================分析每一period下, 是否能meet deadline
-			Tslot=TSBpkt->period;
+		//======================分析每一period下, 是否能meet deadline
+		Tslot=TSBpkt->period;
 	
-			while(doneflag!=true){
-				Totalsize=0;
+		while(doneflag!=true){
+			Totalsize=0;
 
-				//算出所需buffer量 (Packet 數量 --> Totalsize)
-				TSBpkt=TSBnode->pktQueue;
-				while(TSBpkt->period <= Tslot){
-					Totalsize=Totalsize+(ceil(TSBpkt->load/payload)*ceil(Tslot/TSBpkt->period));	
-					TSBpkt=TSBpkt->nodereadynextpkt;
-					if(TSBpkt==NULL)
-						break;
-				}
+			//算出所需buffer量 (Packet 數量 --> Totalsize)
+			TSBpkt=TSBnode->pktQueue;
+			while(TSBpkt->period <= Tslot){
+				Totalsize=Totalsize+(ceil(TSBpkt->load/payload)*ceil(Tslot/TSBpkt->period));	
+				TSBpkt=TSBpkt->nodereadynextpkt;
+				if(TSBpkt==NULL)
+					break;
+			}
 
-				//計算需要的event數量，反推所需buffer量 (解決Hop不連續上的問題)
-				if(nodehop>1){
-					totalevent=ceil(Totalsize/Maxbuffersize);
-					Totalsize=(totalevent*Maxbuffersize)*nodehop;
-				}
+			//計算需要的event數量，反推所需buffer量 (解決Hop不連續上的問題)
+			if(nodehop>1){
+				totalevent=ceil(Totalsize/Maxbuffersize);
+				Totalsize=(totalevent*Maxbuffersize)*nodehop;
+			}
 
-				//計算Connection interval
+			//計算Connection interval
+			PacketSize=floor(Tslot/Tc)*double(Maxbuffersize);
+			while(Totalsize > PacketSize){
+				Tc--;
 				PacketSize=floor(Tslot/Tc)*double(Maxbuffersize);
-				while(Totalsize > PacketSize){
-					Tc--;
-					PacketSize=floor(Tslot/Tc)*double(Maxbuffersize);
-				}
+			}
 
-				//更新Time slot
-				if(TSBpkt!=NULL){
-					Tslot=TSBpkt->period;
-				}else{
-					doneflag=true;
-				}
-			}	
+			//更新Time slot
+			if(TSBpkt!=NULL){
+				Tslot=TSBpkt->period;
+			}else{
+				doneflag=true;
+			}
+		}	
 
-			TSBnode->eventinterval=Tc-Maxbuffersize;
-			TSBnode=TSBnode->nextnd;
+		TSBnode->eventinterval=Tc-Maxbuffersize;
+		TSBnode=TSBnode->nextnd;
+
+		if(MEINode!=NULL){
+			break;
 		}
 	}
+}
+
+/*=====================================
+	對需要Scan 的Conn Node
+	做Scan duration 計算，以及Tc重新計算
+=====================================*/
+void EventInterval::IntervalReassign(){
+	double MaxAdvinter=0;	//最長廣播間距
+	short int devicenum=0;	//Adv Device 數量
+
+	for(Node *node=Head->nextnd; node!=NULL; node=node->nextnd){
+		if(node->SendNode==Head){
+			MaxAdvinter=0;
+			devicenum=0;
+
+			//先找Device 數量 & 對應最大廣播間距
+			for(Node *AdvNode=Head->nextnd; AdvNode!=NULL; AdvNode=AdvNode->nextnd){
+				if(node==AdvNode->SendNode){
+					AdvNode->pkt->node=node;	//主要是要將所屬node轉為對應Conn Node，目的為在PacketQueue中 要做node上readynextpkt安排，且MEI重新計算
+												//做完之後要設定回來 (Node上的nodenextpkt並未改變)
+					devicenum++;			
+					if(AdvNode->eventinterval>MaxAdvinter){
+						MaxAdvinter=AdvNode->eventinterval;
+					}
+				}
+			}
+
+			if(devicenum>0){
+				//計算Scan duration (int ScanWin, int ScanInter, int AdvInter, int device)
+				node->ScanDuration=node->SCAN_Compute(	node->ScanWin,
+														node->ScanInter,
+														MaxAdvinter,
+														devicenum);
+				MEI(node);
+
+				for(Node *AdvNode=Head->nextnd; AdvNode!=NULL; AdvNode=AdvNode->nextnd){
+					if(node==AdvNode->SendNode){
+						AdvNode->pkt->node=AdvNode;
+					}
+				}
+			}
+		}
+	}
+
+	/*---------------------------------
+		Reassign Connection interval
+	---------------------------------*/
 	
+
+
 }
 
 /*===========================
@@ -361,7 +414,7 @@ void EventInterval::EIMA(){
 		printf("The Frame size is larger than three, the FrameTable is error\n");
 		system("PAUSE");
 	}
-	
+	/*
 	//-------------------------------Scan duration 計算
 	for(Node* node=Head->nextnd; node!=NULL; node=node->nextnd){
 		devicenum=0;
@@ -388,7 +441,7 @@ void EventInterval::EIMA(){
 			node->ScanDuration=0;
 		}
 	}
-	
+	*/
 	//---------------------------------Print 出資訊
 #ifdef _Showlog
 	for(Node* node=Head->nextnd; node!=NULL; node=node->nextnd){
