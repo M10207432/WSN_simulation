@@ -1,7 +1,6 @@
 #ifndef CONNINTERVAL_H
 #define CONNINTERVAL_H
 
-#include "../Struct/WSNStruct.h"
 extern double Connectioninterval;
 extern double DIFMinperiod;
 extern short int Rateproposal;

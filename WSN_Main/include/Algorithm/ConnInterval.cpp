@@ -4,7 +4,7 @@
 #include <fstream>
 #include <string>
 #include <math.h>
-#include <map> 
+#include <map>
 #include <memory>
 
 #include "../Struct/WSNFile.h"
@@ -166,6 +166,7 @@ void EventInterval::MEI(Node * MEINode){
 	對需要Scan 的Conn Node
 	做Scan duration 計算，以及Tc重新計算
 =====================================*/
+/*
 void EventInterval::IntervalReassign(){
 	double MaxAdvinter=0;	//最長廣播間距
 	short int devicenum=0;	//Adv Device 數量
@@ -204,14 +205,11 @@ void EventInterval::IntervalReassign(){
 		}
 	}
 
-	/*---------------------------------
-		Reassign Connection interval
-	---------------------------------*/
 	
 
 
 }
-
+*/
 /*===========================
 		比較組
 	找各個區間(interval)
@@ -395,6 +393,7 @@ void EventInterval::EIMA(){
 		if(tbl->slot==frameid && tbl->n1->SendNode==Head){
 			Ftbl->id=frameid++;
 			Ftbl->Currentflag=false;
+			Ftbl->arrival=0;
 			Ftbl->Period=tbl->n1->eventinterval;
 			Ftbl->Deadline=tbl->n1->eventinterval;
 			Ftbl->Size=Ftbl->Period/nodelevel1;
@@ -414,34 +413,8 @@ void EventInterval::EIMA(){
 		printf("The Frame size is larger than three, the FrameTable is error\n");
 		system("PAUSE");
 	}
-	/*
-	//-------------------------------Scan duration 計算
-	for(Node* node=Head->nextnd; node!=NULL; node=node->nextnd){
-		devicenum=0;
-		MaxAdvinter=0;
-		if(node->SendNode==Head){
-			//先找Device 數量 & 對應最大廣播間距
-			Node *BelongNode=Head->nextnd;
-			while(BelongNode!=NULL){
-				if(node==BelongNode->SendNode){
-					devicenum++;			
-					if(BelongNode->eventinterval>MaxAdvinter){
-						MaxAdvinter=BelongNode->eventinterval;
-					}
-				}
-				BelongNode=BelongNode->nextnd;
-			}
-
-			//計算Scan duration
-			node->ScanDuration=node->SCAN_Compute(	node->ScanWin,
-													node->ScanInter,
-													MaxAdvinter,
-													devicenum);
-		}else{
-			node->ScanDuration=0;
-		}
-	}
-	*/
+	
+	
 	//---------------------------------Print 出資訊
 #ifdef _Showlog
 	for(Node* node=Head->nextnd; node!=NULL; node=node->nextnd){

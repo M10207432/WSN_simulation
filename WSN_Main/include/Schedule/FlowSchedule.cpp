@@ -775,6 +775,7 @@ void NodeBufferSet(Node * SettingNode){
 	node->State為被通知的node
 	node->EvtArrival為event 抵達
 ***********************************************/
+FrameTable *Work_tbl=NULL;
 void FrameEDFSchedule(){
 	
 	TDMATable *table=TDMA_Tbl;
@@ -793,9 +794,11 @@ void FrameEDFSchedule(){
 	if(Head->FrameSize<=0){ //(Head->RecvNode目前是先擋住，但之後要對FrameSize做修改)
 		
 		//找最小FrameTable的deadline
-		FrameTable *Work_tbl=FrameTbl;
+		FrameTable* PreFrame=Work_tbl;
+
+		Work_tbl=FrameTbl;
 		for(FrameTable *Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
-			if(Work_tbl->Deadline > Ftbl->Deadline){
+			if((Work_tbl->Deadline > Ftbl->Deadline) ){
 				Work_tbl=Ftbl;
 			}
 		}
@@ -804,6 +807,7 @@ void FrameEDFSchedule(){
 		Head->FrameSize=Work_tbl->Size;
 
 		Work_tbl->Deadline=Work_tbl->Deadline+Work_tbl->Period;
+		//Work_tbl->Deadline=Timeslot+Work_tbl->Period;
 	}else{
 		Head->FrameSize--;		
 	}
@@ -836,6 +840,7 @@ void FrameEDFSchedule(){
 			if(n->EvtArrival && n->State=="Notify" && (Head->RecvNode==NULL || Head->RecvNode==n)){
 				Head->RecvNode=n;	//Head->RecvNode切換
 				n->State="Transmission";
+
 			}
 			
 			//-------------------進行傳輸 (Head->RecvNode要確認目前沒node或為當前node)
@@ -989,18 +994,48 @@ void FrameEDFSchedule_RD(){
 	
 	if(Head->FrameSize<=0){ //(Head->RecvNode目前是先擋住，但之後要對FrameSize做修改)
 		
-		//找最小FrameTable的deadline
-		FrameTable *Work_tbl=FrameTbl;
-		for(FrameTable *Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
-			if(Work_tbl->Deadline > Ftbl->Deadline){
-				Work_tbl=Ftbl;
+		//找Crtical Frame (Period最小)
+		FrameTable* CrticalFrame=FrameTbl;
+		for(FrameTable* Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
+			if(CrticalFrame->Deadline > Ftbl->Deadline){
+				CrticalFrame=Ftbl;
 			}
 		}
 
-		Work_tbl->ConnNode->State="Notify";
-		Head->FrameSize=Work_tbl->Size;
+		//找最小FrameTable的deadline
+		Work_tbl=NULL;
+		for(FrameTable *Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
+			if(Timeslot >= Ftbl->arrival){
+				if(Work_tbl==NULL){
+					Work_tbl=Ftbl;
+				}else{
+					if((Work_tbl->Deadline > Ftbl->Deadline) ){
+						Work_tbl=Ftbl;
+					}
+				}
+			}
+		}
 
-		//Work_tbl->Deadline=Work_tbl->Deadline+Work_tbl->Period;
+		//
+		if(Work_tbl!=NULL){
+			if(CrticalFrame!=Work_tbl){
+				if(CrticalFrame->Deadline < (int(Work_tbl->Size)+int(CrticalFrame->Size)+Timeslot)){
+					if(Timeslot >= Work_tbl->arrival){
+						Work_tbl=CrticalFrame;
+					}else{
+						Work_tbl=NULL;
+					}
+				}
+			}
+				
+			if(Work_tbl!=NULL){
+				Work_tbl->arrival=Work_tbl->arrival+Work_tbl->Period;
+				Work_tbl->ConnNode->State="Notify";
+				Head->FrameSize=Work_tbl->Size;
+				Work_tbl->Deadline=Work_tbl->Deadline+Work_tbl->Period;
+			}
+		}
+		//Work_tbl->Deadline=Timeslot+Work_tbl->Period;
 	}else{
 		Head->FrameSize--;		
 	}
@@ -1033,15 +1068,7 @@ void FrameEDFSchedule_RD(){
 			if(n->EvtArrival && n->State=="Notify" && (Head->RecvNode==NULL || Head->RecvNode==n)){
 				Head->RecvNode=n;	//Head->RecvNode切換
 				n->State="Transmission";
-
-				//Deadline assignment
-				
-				for(FrameTable *Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
-					if(Ftbl->ConnNode==n){
-						Ftbl->Deadline=Timeslot+Ftbl->Period;
-					}
-				}
-				
+								
 			}
 			
 			//-------------------進行傳輸 (Head->RecvNode要確認目前沒node或為當前node)

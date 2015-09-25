@@ -116,6 +116,7 @@ struct FrameTable{
 	bool Currentflag;
 	
 	short int id;
+	double arrival;
 	double Period;
 	double Size;
 	double Utilization;
