@@ -73,6 +73,7 @@
 #include "gapbondmgr.h"
 
 #include "simpleBLEPeripheral.h"
+#include "MeshProfile.h"
 
 #if defined FEATURE_OAD
   #include "oad.h"
@@ -94,7 +95,7 @@
 #define SBP_PERIODIC_EVT_PERIOD                   1000
 
 // What is the advertising interval when device is discoverable (units of 625us, 160=100ms)
-#define DEFAULT_ADVERTISING_INTERVAL          1600
+#define DEFAULT_ADVERTISING_INTERVAL          32
 
 // Limited discoverable mode advertises for 30.72s, and then stops
 // General discoverable mode advertises indefinitely
@@ -105,11 +106,13 @@
 #define DEFAULT_DISCOVERABLE_MODE             GAP_ADTYPE_FLAGS_GENERAL
 #endif  // defined ( CC2540_MINIDK )
 
+//240==>300ms
+
 // Minimum connection interval (units of 1.25ms, 80=100ms) if automatic parameter update request is enabled
-#define DEFAULT_DESIRED_MIN_CONN_INTERVAL     800
+#define DEFAULT_DESIRED_MIN_CONN_INTERVAL     320//240
 
 // Maximum connection interval (units of 1.25ms, 800=1000ms) if automatic parameter update request is enabled
-#define DEFAULT_DESIRED_MAX_CONN_INTERVAL     800
+#define DEFAULT_DESIRED_MAX_CONN_INTERVAL     320//240
 
 // Slave latency to use if automatic parameter update request is enabled
 #define DEFAULT_DESIRED_SLAVE_LATENCY         0
@@ -136,9 +139,9 @@
 #endif
 
 #define MAX_CONNECTIONS                       3
-#define DEFAULT_SCAN_DURATION                 6000//ms
-#define DEFAULT_SCAN_INTERVAL		      	  2000 //N*625us
-#define DEFAULT_SCAN_WINDOW                   2000 //N*625us
+#define DEFAULT_SCAN_DURATION                 4000//ms
+#define DEFAULT_SCAN_INTERVAL		      32 //N*625us 32
+#define DEFAULT_SCAN_WINDOW                   32 //N*625us 32
 
 #define ROLE_CENTRAL                          1
 #define ROLE_PERIPHERAL                       2
@@ -200,7 +203,7 @@ static uint8 simpleBLEScanIdx;
 static uint8 simpleBLEScanning = FALSE;
 
 #define SBP_BURST_EVT 0x0008 
-int SBP_BURST_EVT_PERIOD= 8;
+int SBP_BURST_EVT_PERIOD= 50;
 uint8 RecvInterval=0x08;
 uint8 testmode=0;
 static void sendData( void );
@@ -211,10 +214,13 @@ int packetnum=1;
 bool SendFlag=0;
 int CMD_SCAN_COUNT=0;
 
-/*********************************************************************
- * Packet Information
+int priority=0;
+int CountBufferSize=0;
+int RSP_Count=0;
+int Qpriority=0;
+static uint16 counter=0;
+uint8 burstData[20] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
- */
 int TIMESLOT=0;			//uint SBP_PERIODIC_EVT_PERIOD
 #define AMOUNT_OF_EVENT 3
 int ReturnEVT=0;
@@ -223,6 +229,14 @@ PeriodicEvent_Creat PERIODIC_EVENT[AMOUNT_OF_EVENT];
 static void BufferQueue(void);
 short int Queue[AMOUNT_OF_EVENT];//Queue[priority]=EVENT_ID
 static void SEND_PACKET(short int);
+uint8 *SCANResponseData;
+
+volatile int Notify_Flag=0;
+volatile int SCANDATA_Flag=0;
+/*********************************************************************
+ * Packet Information
+ */
+
 /*********************************************************************
  * EXTERNAL FUNCTIONS
  */
@@ -485,8 +499,11 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
   // Initialize GATT attributes
   GGS_AddService( GATT_ALL_SERVICES );            // GAP
   GATTServApp_AddService( GATT_ALL_SERVICES );    // GATT attributes
+  
   DevInfo_AddService();                           // Device Information Service
+  
   SimpleProfile_AddService( GATT_ALL_SERVICES );  // Simple GATT Profile
+  MeshProfile_AddService( GATT_ALL_SERVICES );    // Mesh GATT Profile
   
 #if defined FEATURE_OAD
   VOID OADTarget_AddService();                    // OAD Profile
@@ -620,7 +637,6 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
   
     //--------------------------------------------------EVENT 1
 	
-	
 	PERIODIC_EVENT[0].ID=SBP_PERIODIC_TASK1;//SBP_PERIODIC_TASK1
 	PERIODIC_EVENT[0].ARRIVAL=0;
 	PERIODIC_EVENT[0].SIZE=100;
@@ -634,7 +650,7 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
 	PERIODIC_EVENT[1].ID=SBP_PERIODIC_TASK2;
 	PERIODIC_EVENT[1].ARRIVAL=0;
 	PERIODIC_EVENT[1].SIZE=100;
-	PERIODIC_EVENT[1].PERIOD=5000;
+	PERIODIC_EVENT[1].PERIOD=2000;
 	PERIODIC_EVENT[1].ARRIVAL_COUNT=0;
 	PERIODIC_EVENT[1].EXESIZE=PERIODIC_EVENT[1].SIZE;
 	PERIODIC_EVENT[1].DEADLINE=PERIODIC_EVENT[1].PERIOD/1000;
@@ -644,11 +660,11 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
 	PERIODIC_EVENT[2].ID=SBP_PERIODIC_TASK3;
 	PERIODIC_EVENT[2].ARRIVAL=0;
 	PERIODIC_EVENT[2].SIZE=100;
-	PERIODIC_EVENT[2].PERIOD=2000;
+	PERIODIC_EVENT[2].PERIOD=3000;
 	PERIODIC_EVENT[2].ARRIVAL_COUNT=0;
 	PERIODIC_EVENT[2].EXESIZE=PERIODIC_EVENT[2].SIZE;
 	PERIODIC_EVENT[2].DEADLINE=PERIODIC_EVENT[2].PERIOD/1000;
-        
+      
 		
 	/*---------------------------
 		Set BLE init event
@@ -673,8 +689,7 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
  *
  * @return  events not processed
  */
-int priority=0;
-int CountBufferSize=0;
+
 uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
 {
   VOID task_id;
@@ -744,35 +759,27 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
 	GAP_UpdateAdvertisingData(simpleBLEPeripheral_TaskID, FALSE,sizeof ( RSPData ),RSPData );
 	
 		
-	if(TIMESLOT==2){
-		osal_set_event( simpleBLEPeripheral_TaskID, SBP_PERIODIC_TASK1 ); //Event1
-		osal_set_event( simpleBLEPeripheral_TaskID, SBP_PERIODIC_TASK2 ); //Event2
-		osal_set_event( simpleBLEPeripheral_TaskID, SBP_PERIODIC_TASK3 ); //Event3
-	}
 	
 	//performPeriodicTask();// Perform periodic application task
 	//periodicCentralTask();
 	return (events ^ SBP_PERIODIC_EVT);
   }
   
+  /*==========================================
+			·j´MArrival Event
+  ==========================================*/
    for (int i=0; i<AMOUNT_OF_EVENT;i++){
 		triggerflag=false;
 		ReturnEVT=0;
+		
 		if(events & PERIODIC_EVENT[i].ID){
-			
+			if(!PERIODIC_EVENT[i].ARRIVAL){
+				PERIODIC_EVENT[i].Arrival_Clock=osal_GetSystemClock();
+			}
 			PERIODIC_EVENT[i].ARRIVAL_COUNT=PERIODIC_EVENT[i].ARRIVAL_COUNT+1;
 			PERIODIC_EVENT[i].ARRIVAL=1;
-			//Urgent event, supervise the Notify event
-			if(i==0){
-				for(int j=0; j<AMOUNT_OF_EVENT; j++){
-					if(PERIODIC_EVENT[j].ARRIVAL==1){
-						EventSend(j+1,PERIODIC_EVENT[j].ARRIVAL_COUNT,SYNC);
-						PERIODIC_EVENT[j].ARRIVAL=0;
-					}
-				}
-			}
 			
-			//EventSend(i+1,PERIODIC_EVENT[i].ARRIVAL_COUNT,SYNC);
+			Notify_Flag=1;
 			SYNC++;
 			
 			osal_start_timerEx( simpleBLEPeripheral_TaskID, PERIODIC_EVENT[i].ID, PERIODIC_EVENT[i].PERIOD);
@@ -783,67 +790,28 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
 		}
    }
    
-  /*
-  if ( events & SBP_PERIODIC_TASK1 )
-  {
-        int id=0;  
-        HalLcdWriteStringValue( "Event0", PERIODIC_EVENT[id].ARRIVAL_COUNT, 10,  HAL_LCD_LINE_4 );
-        PERIODIC_EVENT[id].ARRIVAL_COUNT=PERIODIC_EVENT[id].ARRIVAL_COUNT+1;
-        
-        EventSend(id+1,PERIODIC_EVENT[id].ARRIVAL_COUNT,SYNC);//osal_set_event( simpleBLEPeripheral_TaskID, SBP_BURST_EVT ); 
-		//EventSend(id+1,PERIODIC_EVENT[id].ARRIVAL_COUNT,SYNC);
-		//EventSend(id+1,PERIODIC_EVENT[id].ARRIVAL_COUNT,SYNC);
-		SYNC++;
-		
-        osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_PERIODIC_TASK1, PERIODIC_EVENT[id].PERIOD);
-        
-	return (events ^ SBP_PERIODIC_TASK1);
-  }
-  
-  if ( events & SBP_PERIODIC_TASK2 )
-  {
-        int id=1;
-        HalLcdWriteStringValue( "Event1", PERIODIC_EVENT[id].ARRIVAL_COUNT, 10,  HAL_LCD_LINE_5 );
-        PERIODIC_EVENT[id].ARRIVAL_COUNT=PERIODIC_EVENT[id].ARRIVAL_COUNT+1;
-        
-        EventSend(id+1, PERIODIC_EVENT[id].ARRIVAL_COUNT, SYNC);//osal_set_event( simpleBLEPeripheral_TaskID, SBP_BURST_EVT ); 
-		//EventSend(id+1, PERIODIC_EVENT[id].ARRIVAL_COUNT, SYNC);
-		//EventSend(id+1, PERIODIC_EVENT[id].ARRIVAL_COUNT, SYNC);
-		SYNC++;
-		
-        osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_PERIODIC_TASK2, PERIODIC_EVENT[id].PERIOD);
-        
-	return (events ^ SBP_PERIODIC_TASK2);
-  }
-    
-  if ( events & SBP_PERIODIC_TASK3 )
-  {
-    
-        int id=2;
-        HalLcdWriteStringValue( "Event2", PERIODIC_EVENT[id].ARRIVAL_COUNT, 10,  HAL_LCD_LINE_6 );
-        PERIODIC_EVENT[id].ARRIVAL_COUNT=PERIODIC_EVENT[id].ARRIVAL_COUNT+1;
-        
-        EventSend(id+1, PERIODIC_EVENT[id].ARRIVAL_COUNT, SYNC);//osal_set_event( simpleBLEPeripheral_TaskID, SBP_BURST_EVT ); 
-		//EventSend(id+1, PERIODIC_EVENT[id].ARRIVAL_COUNT, SYNC);
-		//EventSend(id+1, PERIODIC_EVENT[id].ARRIVAL_COUNT, SYNC);
-		SYNC++;
-		
-        osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_PERIODIC_TASK3, PERIODIC_EVENT[id].PERIOD);
-		
-	return (events ^ SBP_PERIODIC_TASK3);
-  }
-  */
   /*==========================================
 	SBP_BURST_EVT(Send msg)
   ==========================================*/
  if ( events & SBP_BURST_EVT )
-  {
-        EventSend(1, PERIODIC_EVENT[0].ARRIVAL_COUNT++,SYNC);
-	EventSend(2, PERIODIC_EVENT[1].ARRIVAL_COUNT++,SYNC);
-	EventSend(3, PERIODIC_EVENT[2].ARRIVAL_COUNT++,SYNC);
-	SYNC++;
+  {  
+  
+	uint32 startclock=0;
 	
-	osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_BURST_EVT, 500);
+	if(SCANDATA_Flag==1){
+		EventSend(5,10,SYNC);
+		SCANDATA_Flag=0;
+	}
+	if(Notify_Flag==1){
+	  for(int j=0; j<AMOUNT_OF_EVENT; j++){
+							
+			if(PERIODIC_EVENT[j].ARRIVAL==1){
+				EventSend(j+1,PERIODIC_EVENT[j].ARRIVAL_COUNT,SYNC);//id, packet, sync
+				PERIODIC_EVENT[j].ARRIVAL=0;
+			}
+		}
+	}
+	Notify_Flag=0;
 	
     return (events ^ SBP_BURST_EVT);
   }  
@@ -904,27 +872,51 @@ static void simpleBLEPeripheralProcessGattMsg(gattMsgEvent_t *pMsg)
 	Notify_handle=pMsg->msg.handleValueNoti.handle;
 	Notify_len=pMsg->msg.handleValueNoti.len;
 	
-	osal_memcpy(Notify_value,pMsg->msg.handleValueNoti.value,Notify_len);//array copy
-	HalLcdWriteStringValue( "LEN:", Notify_len, 10,  HAL_LCD_LINE_5 );
+	//osal_memcpy(Notify_value,pMsg->msg.handleValueNoti.value,Notify_len);//array copy
+	volatile uint8 recvmsg=pMsg->msg.handleValueNoti.value[0];
 	
-	HalLcdWriteStringValue( "", (uint8)Notify_value[9], 10,  HAL_LCD_LINE_6 );
-	HalLcdWriteStringValue( "", (uint8)Notify_value[8], 10,  HAL_LCD_LINE_7 );
-	
-	uint8 RSParray[20]="0";
-	HalLcdWriteStringValue( RSParray, RSParray[0], 10, HAL_LCD_LINE_4 );	
-	//ValueNotification(0x0050,RSParray,1);
-	if(Notify_value[8]==12){
-		//EventSend(6,CMD_SCAN_COUNT,1);
+	HalLcdWriteStringValue( "", recvmsg, 10,  HAL_LCD_LINE_4 );
+	//EventSend(1,1,0);
+		
+	if(recvmsg==12){
+		SCANDATA_Flag=0;
+		HalLcdWriteString( "Discovering...", HAL_LCD_LINE_1 );
 		GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
 										  DEFAULT_DISCOVERY_ACTIVE_SCAN,
 										  DEFAULT_DISCOVERY_WHITE_LIST ); 
 	}
-        if(Notify_value[8]==13){
-              osal_set_event( simpleBLEPeripheral_TaskID, SBP_PERIODIC_TASK1 ); //Event1
-              osal_set_event( simpleBLEPeripheral_TaskID, SBP_PERIODIC_TASK2 ); //Event2
-              osal_set_event( simpleBLEPeripheral_TaskID, SBP_PERIODIC_TASK3 ); //Event3
-        }
+	
+	if(recvmsg==13){
 		
+		osal_set_event( simpleBLEPeripheral_TaskID, SBP_BURST_EVT );
+		/*
+		
+		if(SCANDATA_Flag==1){
+			EventSend(5,10,SYNC);
+			SCANDATA_Flag=0;
+		}
+		if(Notify_Flag==1){
+		  for(int j=0; j<AMOUNT_OF_EVENT; j++){
+								
+				if(PERIODIC_EVENT[j].ARRIVAL==1){
+					EventSend(j+1,PERIODIC_EVENT[j].ARRIVAL_COUNT,SYNC);
+					PERIODIC_EVENT[j].ARRIVAL=0;
+				}
+			}
+		}
+
+		Notify_Flag=0;
+		*/
+	}
+	
+	
+	if(recvmsg==14){
+		  HalLcdWriteString( "Event Running", HAL_LCD_LINE_5 );
+		  osal_set_event( simpleBLEPeripheral_TaskID, SBP_PERIODIC_TASK1 ); //Event1
+		  osal_set_event( simpleBLEPeripheral_TaskID, SBP_PERIODIC_TASK2 ); //Event2
+		  osal_set_event( simpleBLEPeripheral_TaskID, SBP_PERIODIC_TASK3 ); //Event3
+	}
+	
  }
 }
 
@@ -969,10 +961,8 @@ static void simpleBLEPeripheral_HandleKeys( uint8 shift, uint8 keys )
 		*/
 	
   }
-  /*=========================================
-  
+  /*=========================================  
               DOWN Key
-  
   ===========================================*/
   if ( keys & HAL_KEY_DOWN ){
     
@@ -984,28 +974,10 @@ static void simpleBLEPeripheral_HandleKeys( uint8 shift, uint8 keys )
 		
 		HCI_EXT_SetTxPowerCmd(LL_EXT_TX_POWER_MINUS_6_DBM);
 	  }
-      
-	  /*
-	  SYNC++;
-	  
-      if ( simpleBLEDoWrite & !setpowerflag)
-      {
-		#if (defined HAL_LCD) && (HAL_LCD == TRUE)
-			HalLcdWriteString( "DOWN Send",  HAL_LCD_LINE_4 );
-		#endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
-        SBP_BURST_EVT_PERIOD=RecvInterval;
-        if (SBP_BURST_EVT_PERIOD<0x08)
-          SBP_BURST_EVT_PERIOD=0x08;
-        packetnum=1;
-        testmode=1;
-		osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_BURST_EVT, SBP_BURST_EVT_PERIOD );
-      }
-	  */
+
   }
   /*=========================================
-  
               LEFT Key
-  
   ===========================================*/
   if ( keys & HAL_KEY_LEFT ){
    
@@ -1024,36 +996,9 @@ static void simpleBLEPeripheral_HandleKeys( uint8 shift, uint8 keys )
         HalLcdWriteString( bdAddr2Str( simpleBLEDevList[simpleBLEScanIdx].addr ),
                           HAL_LCD_LINE_2 );
     }
-	
-	/*
-      if(setpowerflag){
-		#if (defined HAL_LCD) && (HAL_LCD == TRUE)
-			HalLcdWriteString( "TX power: 0DB",  HAL_LCD_LINE_4 );
-		#endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
-
-		
-		HCI_EXT_SetTxPowerCmd(LL_EXT_TX_POWER_0_DBM);
-	  }
-      EventSend(3,btn_count++);	  
-      if ( simpleBLEDoWrite & !setpowerflag)
-      {
-	   #if (defined HAL_LCD) && (HAL_LCD == TRUE)
-		HalLcdWriteString( "LEFT Send",  HAL_LCD_LINE_4 );
-	   #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
-          SBP_BURST_EVT_PERIOD=RecvInterval;
-          if (SBP_BURST_EVT_PERIOD<0x08)
-            SBP_BURST_EVT_PERIOD=0x08;
-           //SBP_BURST_EVT_PERIOD=16;
-           packetnum=3;
-	   osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_BURST_EVT, SBP_BURST_EVT_PERIOD );
-	   
-      }
-	*/
   }
   /*=========================================
-  
               RIGHT Key
-  
   ===========================================*/
   if ( keys & HAL_KEY_RIGHT ){
   
@@ -1082,6 +1027,9 @@ static void simpleBLEPeripheral_HandleKeys( uint8 shift, uint8 keys )
 	  
   }
   
+  /*=========================================
+              CENTER Key
+  ===========================================*/
   if(keys & HAL_KEY_CENTER){
     
 	  //center_mode switch
@@ -1118,8 +1066,6 @@ static void simpleBLEPeripheral_HandleKeys( uint8 shift, uint8 keys )
   }
  
 }
-static uint16 counter=0;
-uint8 burstData[20] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
 static void sendData(void )
 {    
@@ -1144,12 +1090,28 @@ static void sendData(void )
     }
 }
 
-static void EventSend(uint16 id,uint16 count, uint8 sync){
-
-    counter=count;
-	burstData[0] = (counter & 0xFF00)>>8;
-    burstData[1] = (counter & 0xFF);
+static void EventSend(uint16 id,uint16 count, uint8 sync){   
+	int i=id-1;
     
+	burstData[3]=(PERIODIC_EVENT[i].Arrival_Clock & 0xFF000000)>>24;
+	burstData[2]=(PERIODIC_EVENT[i].Arrival_Clock & 0xFF0000)>>16;
+	burstData[1]=(PERIODIC_EVENT[i].Arrival_Clock & 0xFF00)>>8;
+	burstData[0]=(PERIODIC_EVENT[i].Arrival_Clock & 0xFF);
+	
+	burstData[4]=0;
+	
+	PERIODIC_EVENT[i].Notify_Clock=osal_GetSystemClock();
+	burstData[8]=(PERIODIC_EVENT[i].Notify_Clock & 0xFF000000)>>24;
+	burstData[7]=(PERIODIC_EVENT[i].Notify_Clock & 0xFF0000)>>16;
+	burstData[6]=(PERIODIC_EVENT[i].Notify_Clock & 0xFF00)>>8;
+	burstData[5]=(PERIODIC_EVENT[i].Notify_Clock & 0xFF);
+	
+	burstData[9]=0;
+	
+	burstData[10] = (count & 0xFF00)>>8;
+    burstData[11] = (count & 0xFF);
+	
+	//---------------------------------Setting Packet
 	attHandleValueNoti_t Packet;
 	
 	Packet.len=20;
@@ -1183,7 +1145,6 @@ static void ValueNotification(uint16 id, uint8* msg, uint8 sync){
  */
  static void simpleBLECentralEventCB( gapCentralRoleEvent_t *pEvent )
 {
-  
 	uint8 i;  
 	HalLcdWriteString( "Central CB",  HAL_LCD_LINE_7 );
 	
@@ -1256,31 +1217,6 @@ static void simpleBLECentralPasscodeCB( uint8 *deviceAddr, uint16 connectionHand
 #endif
 }
 
-static void simpleBLECentralPairStateCB( uint16 connHandle, uint8 state, uint8 status )
-{
-  if ( state == GAPBOND_PAIRING_STATE_STARTED )
-  {
-	HalLcdWriteString( "Pairing started",  HAL_LCD_LINE_1 );
-  }
-  else if ( state == GAPBOND_PAIRING_STATE_COMPLETE )
-  {
-    if ( status == SUCCESS )
-    {
-		HalLcdWriteString( "Pairing success",  HAL_LCD_LINE_1 );
-    }
-    else
-    {
-		HalLcdWriteString( "Pairing fail",  HAL_LCD_LINE_1 );
-    }
-  }
-  else if ( state == GAPBOND_PAIRING_STATE_BONDED )
-  {
-    if ( status == SUCCESS )
-    {
-		HalLcdWriteString( "Bonding success",  HAL_LCD_LINE_1 );
-    }
-  }
-}
  
 /*********************************************************************
  * @fn      peripheralStateNotificationCB
@@ -1447,8 +1383,6 @@ static void performPeriodicTask( void )
   }
 }
 
-int Qpriority=0;
-
 static void SEND_PACKET(short int Handle )
 {    
     burstData[0] = (counter & 0xFF00)>>8;
@@ -1561,9 +1495,7 @@ static void periodicCentralTask( void )
       currentDevice = 0;
 }
 
-/*====================================================
-				Profile Callback
-====================================================*/
+
 /*********************************************************************
  * @fn      observerCB
  *
@@ -1573,7 +1505,7 @@ static void periodicCentralTask( void )
  *
  * @return  none
  */
-int RSP_Count=0;
+
 static void observerEventCB( observerRoleEvent_t *pEvent )
 {
   switch ( pEvent->gap.opcode )
@@ -1584,25 +1516,31 @@ static void observerEventCB( observerRoleEvent_t *pEvent )
         HalLcdWriteString( bdAddr2Str( pEvent->initDone.devAddr ),  HAL_LCD_LINE_2 );
       }
       break;
-
+	  
+	//============================================§ä¨ìDEVICES
     case GAP_DEVICE_INFO_EVENT:
       {
         simpleBLEAddDeviceInfo( pEvent->deviceInfo.addr, pEvent->deviceInfo.addrType ); 
 		
 		/*---------------------------------------
 					Response Data
-		  ---------------------------------------*/
-			
+		---------------------------------------*/
+		
 		uint8 RSParray[20];
-		osal_memcpy( RSParray, pEvent->deviceInfo.pEvtData, sizeof(RSParray) );
-		HalLcdWriteStringValue( RSParray,RSP_Count++, 10, HAL_LCD_LINE_4 );	
+		//osal_memcpy( RSParray, pEvent->deviceInfo.pEvtData, sizeof(RSParray) );
+		//HalLcdWriteString( RSParray+2, HAL_LCD_LINE_4 );	
 		
-		//GAPobserverRole_CancelDiscovery();
-		
-		ValueNotification(0x0050,RSParray,1);
+		if(pEvent->deviceInfo.pEvtData[2]=='S'){
+			SCANDATA_Flag=1;
+			//osal_set_event( simpleBLEPeripheral_TaskID, SBP_BURST_EVT );
+			
+			HalLcdWriteString( "Get Response", HAL_LCD_LINE_4 );	
+			GAPobserverRole_CancelDiscovery();
+		}
       }
       break;
-      
+		
+	//============================================µ²§ôSCAN (SCAN DURATION)
     case GAP_DEVICE_DISCOVERY_EVENT:
       {
         // discovery complete
@@ -1616,7 +1554,13 @@ static void observerEventCB( observerRoleEvent_t *pEvent )
         HalLcdWriteStringValue( "Devices Found", simpleBLEScanRes,
                                 10, HAL_LCD_LINE_1 );
 		
-								
+		/*
+		if(!SCANDATA_Flag){
+			GAPObserverRole_StartDiscovery( DEFAULT_DISCOVERY_MODE,
+										  DEFAULT_DISCOVERY_ACTIVE_SCAN,
+										  DEFAULT_DISCOVERY_WHITE_LIST ); 
+		}
+		*/
         if ( simpleBLEScanRes > 0 )
         {
           HalLcdWriteString( "<- To Select", HAL_LCD_LINE_2 );
@@ -1631,6 +1575,7 @@ static void observerEventCB( observerRoleEvent_t *pEvent )
       break;
   }
 }
+
 /*********************************************************************
  * @fn      simpleBLEAddDeviceInfo
  *
@@ -1663,6 +1608,9 @@ static void simpleBLEAddDeviceInfo( uint8 *pAddr, uint8 addrType )
   }
 }
 
+/*==============================================
+			Simple Profile CallBack
+==============================================*/
 static void simpleProfileChangeCB( uint8 paramID )
 {
   uint8 newValue;
@@ -1695,63 +1643,9 @@ static void simpleProfileChangeCB( uint8 paramID )
 	  
 	  if (newValue==1){
 		osal_set_event( simpleBLEPeripheral_TaskID, SBP_PERIODIC_EVT );   //TimeSlot count
-		/*
-		osal_set_event( simpleBLEPeripheral_TaskID, SBP_PERIODIC_TASK1 ); //Event1
-		osal_set_event( simpleBLEPeripheral_TaskID, SBP_PERIODIC_TASK2 ); //Event2
-		osal_set_event( simpleBLEPeripheral_TaskID, SBP_PERIODIC_TASK3 ); //Event3
-		*/
-		//osal_set_event( simpleBLEPeripheral_TaskID, SBP_BURST_EVT );      //TX Event
-		/*
-	    HalLcdWriteStringValue( "Get:", (uint16)(newValue), 10,  HAL_LCD_LINE_4 );
-	  
-	    SBP_BURST_EVT_PERIOD=RecvInterval;
-	    packetnum=1;
-	    osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_BURST_EVT, SBP_BURST_EVT_PERIOD );
-		*/
-	  }
-          
-          
-	  
-	  if (newValue==2){
-									  
 		
-		/*						  
-		  SBP_BURST_EVT_PERIOD=RecvInterval;
-		  packetnum=2;
-		  osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_BURST_EVT, SBP_BURST_EVT_PERIOD );
-		*/
 	  }
-	  /*
-	  if (newValue==3){
-		  HalLcdWriteStringValue( "Get:", (uint16)(newValue), 10,  HAL_LCD_LINE_4 );
-		  
-		  SBP_BURST_EVT_PERIOD=RecvInterval;
-		  packetnum=3;
-		  osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_BURST_EVT, SBP_BURST_EVT_PERIOD );
-	  }
-	  if (newValue==4){
-		  HalLcdWriteStringValue( "Get:", (uint16)(newValue), 10,  HAL_LCD_LINE_4 );
-		  
-		  SBP_BURST_EVT_PERIOD=RecvInterval;
-		  packetnum=4;
-		  osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_BURST_EVT, SBP_BURST_EVT_PERIOD );
-	  }
-	  if (newValue==5){
-		  HalLcdWriteStringValue( "Get:", (uint16)(newValue), 10,  HAL_LCD_LINE_4 );
-		  
-		  SBP_BURST_EVT_PERIOD=RecvInterval;
-		  packetnum=5;
-		  osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_BURST_EVT, SBP_BURST_EVT_PERIOD );
-	  }
-	  if (newValue==6){
-		  HalLcdWriteStringValue( "Get:", (uint16)(newValue), 10,  HAL_LCD_LINE_4 );
-		  
-		  SBP_BURST_EVT_PERIOD=RecvInterval;
-		  packetnum=6;
-		  osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_BURST_EVT, SBP_BURST_EVT_PERIOD );
-	  }
-	 */
-	 
+	  
       break;
 
     case SIMPLEPROFILE_CHAR3:
@@ -1765,6 +1659,32 @@ static void simpleProfileChangeCB( uint8 paramID )
 
     default:
 	  break;
+  }
+}
+
+static void simpleBLECentralPairStateCB( uint16 connHandle, uint8 state, uint8 status )
+{
+  if ( state == GAPBOND_PAIRING_STATE_STARTED )
+  {
+	HalLcdWriteString( "Pairing started",  HAL_LCD_LINE_1 );
+  }
+  else if ( state == GAPBOND_PAIRING_STATE_COMPLETE )
+  {
+    if ( status == SUCCESS )
+    {
+		HalLcdWriteString( "Pairing success",  HAL_LCD_LINE_1 );
+    }
+    else
+    {
+		HalLcdWriteString( "Pairing fail",  HAL_LCD_LINE_1 );
+    }
+  }
+  else if ( state == GAPBOND_PAIRING_STATE_BONDED )
+  {
+    if ( status == SUCCESS )
+    {
+		HalLcdWriteString( "Bonding success",  HAL_LCD_LINE_1 );
+    }
   }
 }
 
