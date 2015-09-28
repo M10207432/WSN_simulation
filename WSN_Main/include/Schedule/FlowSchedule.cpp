@@ -597,6 +597,10 @@ void BLE_EDF(Node *node){
 				(包含判斷是否結束)
 		---------------------------------------------*/
 		PacketBuffer *Buffer=node->NodeBuffer;
+		if(Buffer->load<0){
+			printf("Buffer->load<0\n");
+			system("PAUSE");
+		}
 		if(Buffer->load!=0){
 			totalevent++;
 
@@ -811,10 +815,18 @@ void FrameEDFSchedule(){
 	}else{
 		Head->FrameSize--;		
 	}
-	
-	if(Timeslot==1849){
-		int y=0;
+
+	/*----------------------------------------------
+				先做Scan duration
+	----------------------------------------------*/
+	for(Node *n=Head->nextnd; n!=NULL; n=n->nextnd){
+		if(n->SendNode!=Head && n->ScanFlag && n->SendNode!=Head->RecvNode){ //傳輸Node不為Head, n現在scan 且傳輸Node現在沒傳輸
+			if(n->EXEScanDuration>=0){
+				n->EXEScanDuration--;
+			}
+		}
 	}
+
 	/*----------------------------------------------
 		ConnSet中被通知的Node做對應傳輸或SCAN
 		Notify & Scan可同時運作
@@ -839,8 +851,40 @@ void FrameEDFSchedule(){
 			
 			if(n->EvtArrival && n->State=="Notify" && (Head->RecvNode==NULL || Head->RecvNode==n)){
 				Head->RecvNode=n;	//Head->RecvNode切換
-				n->State="Transmission";
 
+
+				/******************************************
+				******************************************/
+
+				//先做Scan pkt的傳輸
+				for(Node *AdvNode=Head->nextnd; AdvNode!=NULL; AdvNode=AdvNode->nextnd){
+					if(AdvNode->SendNode==n && AdvNode->EXEScanDuration<0 && AdvNode->ScanFlag){
+						
+						n->NodeBuffer->load=n->NodeBuffer->load-payload;
+						AdvNode->pkt->deadline+=AdvNode->pkt->period;
+
+						//判斷是否miss deadline
+						if((Timeslot)>=AdvNode->pkt->deadline){
+#ifdef _ShowLog
+								cout<<"(PKT"<<AdvNode->pkt->id<<" Miss deadline"<<" Deadline "<<AdvNode->pkt->deadline<<")";
+#endif
+								Schdulefile<<"(PKT"<<AdvNode->pkt->id<<" Miss deadline"<<" Deadline "<<AdvNode->pkt->deadline<<")";
+
+								Meetflag=false;
+							//system("PAUSE");
+						}
+
+						AdvNode->ScanFlag=false;
+						AdvNode->EXEScanDuration=AdvNode->ScanDuration;
+						AdvNode->pkt->arrival=AdvNode->pkt->deadline;
+						AdvNode->pkt->deadline=AdvNode->pkt->deadline+AdvNode->pkt->period;
+				
+					}
+				}
+				/******************************************
+				******************************************/
+
+				n->State="Transmission";
 			}
 			
 			//-------------------進行傳輸 (Head->RecvNode要確認目前沒node或為當前node)

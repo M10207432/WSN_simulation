@@ -57,7 +57,9 @@ struct Node{
 	int ScanInter;
 	int AdvInter;
 
+	bool ScanFlag;
 	double ScanDuration;
+	double EXEScanDuration;
 	double SCAN_Compute(int ScanWin, int ScanInter, int AdvInter, int device){
 		double AdvDelay=0.5*AdvInter+(10*(ScanWin/ScanInter)+AdvInter*((ScanInter-ScanWin)/ScanInter));
 		double SCANDelay=AdvDelay*exp((2*device)/(3*AdvDelay));
@@ -123,6 +125,7 @@ struct FrameTable{
 	double Deadline;
 	
 	Node *ConnNode;
+	Node *AdvNode;
 	
 	FrameTable* next_tbl;
 	FrameTable* pre_tbl;

@@ -166,7 +166,7 @@ void EventInterval::MEI(Node * MEINode){
 	對需要Scan 的Conn Node
 	做Scan duration 計算，以及Tc重新計算
 =====================================*/
-/*
+
 void EventInterval::IntervalReassign(){
 	double MaxAdvinter=0;	//最長廣播間距
 	short int devicenum=0;	//Adv Device 數量
@@ -191,9 +191,12 @@ void EventInterval::IntervalReassign(){
 			if(devicenum>0){
 				//計算Scan duration (int ScanWin, int ScanInter, int AdvInter, int device)
 				node->ScanDuration=node->SCAN_Compute(	node->ScanWin,
-														node->ScanInter,
-														MaxAdvinter,
-														devicenum);
+																											node->ScanInter,
+																											MaxAdvinter,
+																											devicenum);
+				node->EXEScanDuration=node->ScanDuration;
+				node->ScanFlag=false;
+
 				MEI(node);
 
 				for(Node *AdvNode=Head->nextnd; AdvNode!=NULL; AdvNode=AdvNode->nextnd){
@@ -204,12 +207,8 @@ void EventInterval::IntervalReassign(){
 			}
 		}
 	}
-
-	
-
-
 }
-*/
+
 /*===========================
 		比較組
 	找各個區間(interval)
@@ -385,7 +384,7 @@ void EventInterval::EIMA(){
 	int MaxAdvinter=0;	//對應廣播群中最大的廣播間距
 	short int frameid=1;
 
-	//-------------------------------Assign給FrameTbl,只有Connection node為3個再用
+	//-------------------------------Assign給FrameTbl,只有Connection node為3個用
 	FrameTbl=new FrameTable;
 	FrameTable* Ftbl=FrameTbl;
 
@@ -408,7 +407,16 @@ void EventInterval::EIMA(){
 		}
 	}
 	Ftbl->pre_tbl->next_tbl=NULL;
-
+	//-------------------------------------Assign 給 AdvNode使用
+	/*
+	for(FrameTable* Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
+		for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd)	{
+			if(n->SendNode!=Head){
+				
+			}
+		}
+	}
+	*/
 	if(--frameid>3){
 		printf("The Frame size is larger than three, the FrameTable is error\n");
 		system("PAUSE");

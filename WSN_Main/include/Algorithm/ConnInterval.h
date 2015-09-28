@@ -13,6 +13,7 @@ class EventInterval{
 		void MEI(Node *);
 		void DIF();
 		void Rate_TO_Interval(int );
+
 		void Algorithm(int);
 		void Interval_TDMA_Algorithm(int);
 
