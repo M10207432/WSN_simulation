@@ -140,11 +140,12 @@ void EventInterval::MEI(Node * MEINode){
 
 			//計算Connection interval
 			PacketSize=floor(Tslot/Tc)*double(Maxbuffersize);
+			
 			while(Totalsize > PacketSize){
 				Tc--;
 				PacketSize=floor(Tslot/Tc)*double(Maxbuffersize);
 			}
-
+			
 			//更新Time slot
 			if(TSBpkt!=NULL){
 				Tslot=TSBpkt->period;
@@ -153,7 +154,7 @@ void EventInterval::MEI(Node * MEINode){
 			}
 		}	
 
-		TSBnode->eventinterval=Tc-Maxbuffersize;
+		TSBnode->eventinterval=Tc;
 		TSBnode=TSBnode->nextnd;
 
 		if(MEINode!=NULL){
@@ -395,7 +396,10 @@ void EventInterval::EIMA(){
 			Ftbl->arrival=0;
 			Ftbl->Period=tbl->n1->eventinterval;
 			Ftbl->Deadline=tbl->n1->eventinterval;
-			Ftbl->Size=Ftbl->Period/nodelevel1;
+			
+			//Ftbl->Size=Ftbl->Period/nodelevel1;
+			Ftbl->Size=floor(Ftbl->Period/nodelevel1);
+
 			Ftbl->Utilization=1/nodelevel1;
 			
 			Ftbl->ConnNode= tbl->n1;			//指向此Conn Node

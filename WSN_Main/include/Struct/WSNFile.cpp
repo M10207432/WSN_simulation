@@ -24,9 +24,9 @@ fstream Finalfile;
 fstream Resultfile;
 
 string GENPath="..\\GENresult\\";
-string SchedulePath="..\\WSNresult\\Debug\\";
-string FinalPath="..\\WSNresult\\Debug\\";
-string ResultPath="..\\WSNresult\\Debug\\";
+string SchedulePath="..\\WSNresult\\EXDebug\\";
+string FinalPath="..\\WSNresult\\EXDebug\\";
+string ResultPath="..\\WSNresult\\EXDebug\\";
 
 /*===========================
 		將GEN的資料取入 且

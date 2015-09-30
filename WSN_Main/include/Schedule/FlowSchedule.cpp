@@ -955,6 +955,8 @@ void TDMASchedule(){
 		Head->FrameSize=Work_tbl->Size;
 
 		Work_tbl->Deadline=Work_tbl->Deadline+Work_tbl->Period;
+
+		Head->FrameSize--;
 	}else{
 		Head->FrameSize--;
 	}
@@ -1062,21 +1064,25 @@ void FrameEDFSchedule_RD(){
 
 		//
 		if(Work_tbl!=NULL){
+			
 			if(CrticalFrame!=Work_tbl){
 				if(CrticalFrame->Deadline < (int(Work_tbl->Size)+int(CrticalFrame->Size)+Timeslot)){
-					if(Timeslot >= Work_tbl->arrival){
+					if(Timeslot >= CrticalFrame->arrival){
 						Work_tbl=CrticalFrame;
 					}else{
 						Work_tbl=NULL;
 					}
 				}
 			}
-				
+			
 			if(Work_tbl!=NULL){
 				Work_tbl->arrival=Work_tbl->arrival+Work_tbl->Period;
 				Work_tbl->ConnNode->State="Notify";
 				Head->FrameSize=Work_tbl->Size;
 				Work_tbl->Deadline=Work_tbl->Deadline+Work_tbl->Period;
+
+				
+				Head->FrameSize--;
 			}
 		}
 		//Work_tbl->Deadline=Timeslot+Work_tbl->Period;
