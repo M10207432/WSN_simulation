@@ -40,6 +40,8 @@
 /*********************************************************************
  * INCLUDES
  */
+#include "stdio.h"
+#include "stdlib.h"
 
 #include "bcomdef.h"
 #include "OSAL.h"
@@ -211,12 +213,15 @@ int SBP_BURST_EVT_PERIOD= 50;
 uint8 RecvInterval=0x08;
 uint8 testmode=0;
 
-static void sendData( void );
-static void EventSend(uint16, uint16, uint8);
-static void ValueNotification(uint16 , uint8* , uint8 );
+static void sendData( void );                               //Testing notification
+static void EventSend(uint16, uint16, uint8);               //
+static void ValueNotification(Buffer *);
 attHandleValueNoti_t noti;
 uint8 burstData[20] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}; //Send data load (20bytes)
+const uint8 seqpkt=4;
 
+Buffer *HEAD_BUFFER;     //store packet
+Buffer *curbuf_ptr;                      //pointer to the current address
 
 uint8 SYNC=0;
 int packetnum=1;
@@ -235,8 +240,6 @@ int ReturnEVT=0;
 bool triggerflag=false;
 
 PeriodicEvent_Creat PERIODIC_EVENT[AMOUNT_OF_EVENT];
-Buffer *HEAD_BUFFER=malloc(sizeof(Buffer));     //store packet
-Buffer *curbuf_ptr;                             //pointer to the current address
 const uint8 seqpktnum=4;
 
 static void BufferQueue(void);
@@ -649,9 +652,11 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
   RegisterForKeys( simpleBLEPeripheral_TaskID );//Keys register-->KEY_CHANGE
   
     //-----------------------Buffer
+    HEAD_BUFFER=malloc(sizeof(Buffer));
     HEAD_BUFFER->next=NULL;
+    HEAD_BUFFER->BufferSize=0;
     curbuf_ptr=HEAD_BUFFER;
-    
+        
     //--------------------------------------------------EVENT 1
 	
 	PERIODIC_EVENT[0].ID=SBP_PERIODIC_TASK1;//SBP_PERIODIC_TASK1
@@ -667,7 +672,7 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
 	PERIODIC_EVENT[1].ID=SBP_PERIODIC_TASK2;
 	PERIODIC_EVENT[1].ARRIVAL=0;
 	PERIODIC_EVENT[1].SIZE=100;
-	PERIODIC_EVENT[1].PERIOD=2000;
+	PERIODIC_EVENT[1].PERIOD=5000;
 	PERIODIC_EVENT[1].ARRIVAL_COUNT=0;
 	PERIODIC_EVENT[1].EXESIZE=PERIODIC_EVENT[1].SIZE;
 	PERIODIC_EVENT[1].DEADLINE=PERIODIC_EVENT[1].PERIOD/1000;
@@ -677,7 +682,7 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
 	PERIODIC_EVENT[2].ID=SBP_PERIODIC_TASK3;
 	PERIODIC_EVENT[2].ARRIVAL=0;
 	PERIODIC_EVENT[2].SIZE=100;
-	PERIODIC_EVENT[2].PERIOD=3000;
+	PERIODIC_EVENT[2].PERIOD=10000;
 	PERIODIC_EVENT[2].ARRIVAL_COUNT=0;
 	PERIODIC_EVENT[2].EXESIZE=PERIODIC_EVENT[2].SIZE;
 	PERIODIC_EVENT[2].DEADLINE=PERIODIC_EVENT[2].PERIOD/1000;
@@ -786,23 +791,38 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
 			·j´MArrival Event
   ==========================================*/
    for (int i=0; i<AMOUNT_OF_EVENT;i++){
-		triggerflag=false;
-		ReturnEVT=0;
-		
 		if(events & PERIODIC_EVENT[i].ID){
-            /*****************
-            *****************/
-        
-            curbuf_ptr->next=malloc(sizeif(Buffer));
-            
-            curbuf_ptr->next->id=PERIODIC_EVENT[i].ID;
-            curbuf_ptr->next->Arrival_Clock=osal_GetSystemClock();
-            
-            curbuf_ptr=curbuf_ptr->next;
         
             /*****************
             *****************/
+            if(HEAD_BUFFER->BufferSize<100){
+                HEAD_BUFFER->BufferSize++;
+                
+                curbuf_ptr->next=malloc(sizeof(Buffer));
+                curbuf_ptr=curbuf_ptr->next;
+                
+                //Event info
+                curbuf_ptr->id=PERIODIC_EVENT[i].ID;
+                curbuf_ptr->Arrival_Clock=osal_GetSystemClock();
+                
+                //Insert clock
+                curbuf_ptr->data[3]=(curbuf_ptr->Arrival_Clock & 0xFF000000)>>24;
+                curbuf_ptr->data[2]=(curbuf_ptr->Arrival_Clock & 0xFF0000)>>16;
+                curbuf_ptr->data[1]=(curbuf_ptr->Arrival_Clock & 0xFF00)>>8;
+                curbuf_ptr->data[0]=(curbuf_ptr->Arrival_Clock & 0xFF);
+                curbuf_ptr->data[4]=0;
+                
+                curbuf_ptr->next=NULL;           
+            }
             
+            if(HEAD_BUFFER->next==NULL){
+                HalLcdWriteStringValue( "Empty:", HEAD_BUFFER->BufferSize, 10,  HAL_LCD_LINE_6);
+            }else{
+                HalLcdWriteStringValue( "", HEAD_BUFFER->BufferSize, 10,  HAL_LCD_LINE_6 );
+            }
+            /*****************
+            *****************/
+            /*
 			if(!PERIODIC_EVENT[i].ARRIVAL){
 				PERIODIC_EVENT[i].Arrival_Clock=osal_GetSystemClock();
 			}
@@ -811,11 +831,9 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
 			
 			Notify_Flag=1;
 			SYNC++;
-			
+			*/
+            
 			osal_start_timerEx( simpleBLEPeripheral_TaskID, PERIODIC_EVENT[i].ID, PERIODIC_EVENT[i].PERIOD);
-			
-			triggerflag=true;
-			ReturnEVT=ReturnEVT+PERIODIC_EVENT[i].ID;
 			return (events ^ PERIODIC_EVENT[i].ID);//XOR
 		}
    }
@@ -841,10 +859,6 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
         } 
       }
       */
-    
-    
-    
-    
 	  for(int j=0; j<AMOUNT_OF_EVENT; j++){
 							
 			if(PERIODIC_EVENT[j].ARRIVAL==1){
@@ -902,6 +916,9 @@ static void simpleBLEPeripheral_ProcessOSALMsg( osal_event_hdr_t *pMsg )
   }
 }
 
+/*=============================================
+                Recv Notify data
+=============================================*/
 static void simpleBLEPeripheralProcessGattMsg(gattMsgEvent_t *pMsg)
 {
  //Message Indication Confirmation
@@ -931,8 +948,9 @@ static void simpleBLEPeripheralProcessGattMsg(gattMsgEvent_t *pMsg)
 	if(recvmsg==13){
 		
 		osal_set_event( simpleBLEPeripheral_TaskID, SBP_BURST_EVT );
+        ValueNotification(HEAD_BUFFER);
+        
 		/*
-		
 		if(SCANDATA_Flag==1){
 			EventSend(5,10,SYNC);
 			SCANDATA_Flag=0;
@@ -993,29 +1011,12 @@ static void simpleBLEPeripheral_HandleKeys( uint8 shift, uint8 keys )
 		HalLcdWriteString( "Disable Discovering", HAL_LCD_LINE_1 );
 		GAPobserverRole_CancelDiscovery();
 	}
-  //EventSend(2,btn_count++,1);
-	
-	/*
-		uint16 desired_min_interval = 800;
-		uint16 desired_max_interval = 800;
-		GAPRole_SetParameter( GAPROLE_MIN_CONN_INTERVAL, sizeof( uint16 ), &desired_min_interval );
-		GAPRole_SetParameter( GAPROLE_MAX_CONN_INTERVAL, sizeof( uint16 ), &desired_max_interval );
-		*/
 	
   }
   /*=========================================  
               DOWN Key
   ===========================================*/
   if ( keys & HAL_KEY_DOWN ){
-    
-	  if(setpowerflag){
-		#if (defined HAL_LCD) && (HAL_LCD == TRUE)
-			HalLcdWriteString( "TX power: -6DB",  HAL_LCD_LINE_4 );
-		#endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
-		
-		
-		HCI_EXT_SetTxPowerCmd(LL_EXT_TX_POWER_MINUS_6_DBM);
-	  }
 
   }
   /*=========================================
@@ -1023,50 +1024,12 @@ static void simpleBLEPeripheral_HandleKeys( uint8 shift, uint8 keys )
   ===========================================*/
   if ( keys & HAL_KEY_LEFT ){
    
-	// Display discovery results
-    if ( !simpleBLEScanning && simpleBLEScanRes > 0 )
-    {
-        // Increment index of current result (with wraparound)
-        simpleBLEScanIdx++;
-        if ( simpleBLEScanIdx >= simpleBLEScanRes )
-        {
-          simpleBLEScanIdx = 0;
-        }
-        
-        HalLcdWriteStringValue( "Device", simpleBLEScanIdx + 1,
-                                10, HAL_LCD_LINE_1 );
-        HalLcdWriteString( bdAddr2Str( simpleBLEDevList[simpleBLEScanIdx].addr ),
-                          HAL_LCD_LINE_2 );
-    }
   }
   /*=========================================
               RIGHT Key
   ===========================================*/
   if ( keys & HAL_KEY_RIGHT ){
   
-	if(setpowerflag){
-		#if (defined HAL_LCD) && (HAL_LCD == TRUE)
-			HalLcdWriteString( "TX power: +4DB",  HAL_LCD_LINE_4 );
-		#endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
-		
-		
-		HCI_EXT_SetTxPowerCmd(LL_EXT_TX_POWER_4_DBM);
-	  }
-    EventSend(4,btn_count++,SYNC);
-	SYNC++;
-    if ( simpleBLEDoWrite & !setpowerflag)
-    {
-		#if (defined HAL_LCD) && (HAL_LCD == TRUE)
-			HalLcdWriteString( "Right Send",  HAL_LCD_LINE_4 );
-		#endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
-                SBP_BURST_EVT_PERIOD=RecvInterval;
-                if (SBP_BURST_EVT_PERIOD<0x08)
-                  SBP_BURST_EVT_PERIOD=0x08;
-                //SBP_BURST_EVT_PERIOD=100;
-                packetnum=4;
-		osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_BURST_EVT, SBP_BURST_EVT_PERIOD );
-      }
-	  
   }
   
   /*=========================================
@@ -1074,37 +1037,6 @@ static void simpleBLEPeripheral_HandleKeys( uint8 shift, uint8 keys )
   ===========================================*/
   if(keys & HAL_KEY_CENTER){
     
-	  //center_mode switch
-	  uint8 new_adv_enabled_status = TRUE;
-	  
-      if(center_mode==0){
-		center_mode=1;
-		#if (defined HAL_LCD) && (HAL_LCD == TRUE)
-			HalLcdWriteString( "Master",  HAL_LCD_LINE_7 );
-		#endif
-		
-		osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_START_DEVICE_EVT, 500 ); 
-	  }else if(center_mode==1){
-		center_mode=2;
-		#if (defined HAL_LCD) && (HAL_LCD == TRUE)
-			HalLcdWriteString( "Change TX Power",  HAL_LCD_LINE_4 );
-		#endif
-		
-	  }else if(center_mode==2){
-		center_mode=0;
-		#if (defined HAL_LCD) && (HAL_LCD == TRUE)
-			HalLcdWriteString( "Slave",  HAL_LCD_LINE_7 );
-		#endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
-		
-		osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_START_DEVICE_EVT, 500 ); 
-	  }
-	  
-	  if(center_mode==2){
-		setpowerflag=1;
-	  }else{		
-		setpowerflag=0;
-	  }
-      
   }
  
 }
@@ -1166,16 +1098,27 @@ static void EventSend(uint16 id,uint16 count, uint8 sync){
 	
 }
 
-static void ValueNotification(uint16 id, uint8* msg, uint8 sync){
+static void ValueNotification(Buffer* BUF){
+    uint8 countpkt=0;
+    Buffer* notifybuffer=BUF->next;
 	attHandleValueNoti_t Pkt;
-	
-	Pkt.len=20;
-	Pkt.handle=id;
-	osal_memcpy(&Pkt.value, msg, 20);
-	
-	Pkt.value[19]=sync;
-	
-	if(GATT_Notification(gapConnHandle, &Pkt, FALSE)==SUCCESS){}
+	uint32 NotifyClock;
+    
+    while(notifybuffer!=NULL && (countpkt++)<seqpkt){
+        Pkt.len=20;
+        Pkt.handle=notifybuffer->id;
+        NotifyClock=osal_GetSystemClock();
+        
+        osal_memcpy(&Pkt.value, notifybuffer->data, 20);
+        
+        if(GATT_Notification(gapConnHandle, &Pkt, FALSE)==SUCCESS){}
+        
+        BUF->BufferSize--;
+        BUF->next=notifybuffer->next;
+        notifybuffer=notifybuffer->next;
+        //free(notifybuffer);
+        //notifybuffer=BUF->next;
+    }
 }
 /*********************************************************************
  * @fn      Central CallBack
