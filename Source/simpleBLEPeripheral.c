@@ -180,10 +180,7 @@ enum
 // Connection handle of current connection 
 static uint16 simpleBLEConnHandle = GAP_CONNHANDLE_INIT;
 static bool simpleBLEDoWrite = FALSE;
-static bool setpowerflag=FALSE;
 
-//mode0->Advertising(slave), mode1->Discovery(master), mode2->tx power setting
-static int center_mode=0;
 static uint8 deviceRole = ROLE_PERIPHERAL;
 static uint8 masterSlave_State = BLE_STATE_ADVERTISING;
 uint16 recevdata;
@@ -194,21 +191,33 @@ static uint16 gapConnHandle;
 static void simpleBLEPeripheral_HandleKeys( uint8 shift, uint8 keys );
 static void simpleBLEPeripheralProcessGattMsg( gattMsgEvent_t *pMsg );
 
-attHandleValueNoti_t noti;
-
 // Number of scan results and scan result index
 static uint8 simpleBLEScanRes;
 static uint8 simpleBLEScanIdx;
+
 // Scanning state
 static uint8 simpleBLEScanning = FALSE;
 
-#define SBP_BURST_EVT 0x0008 
+/************************************************  
+                Setting Parameter
+************************************************/
+#define SBP_BURST_EVT 0x0008    // Send Event Handler
+#define AMOUNT_OF_EVENT 3       // Packet event number
+
+static bool setpowerflag=FALSE;
+static int center_mode=0;//mode0->Advertising(slave), mode1->Discovery(master), mode2->tx power setting
+
 int SBP_BURST_EVT_PERIOD= 50;
 uint8 RecvInterval=0x08;
 uint8 testmode=0;
+
 static void sendData( void );
 static void EventSend(uint16, uint16, uint8);
 static void ValueNotification(uint16 , uint8* , uint8 );
+attHandleValueNoti_t noti;
+uint8 burstData[20] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}; //Send data load (20bytes)
+
+
 uint8 SYNC=0;
 int packetnum=1;
 bool SendFlag=0;
@@ -219,13 +228,17 @@ int CountBufferSize=0;
 int RSP_Count=0;
 int Qpriority=0;
 static uint16 counter=0;
-uint8 burstData[20] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
 int TIMESLOT=0;			//uint SBP_PERIODIC_EVT_PERIOD
-#define AMOUNT_OF_EVENT 3
+
 int ReturnEVT=0;
 bool triggerflag=false;
+
 PeriodicEvent_Creat PERIODIC_EVENT[AMOUNT_OF_EVENT];
+Buffer *HEAD_BUFFER=malloc(sizeof(Buffer));     //store packet
+Buffer *curbuf_ptr;                             //pointer to the current address
+const uint8 seqpktnum=4;
+
 static void BufferQueue(void);
 short int Queue[AMOUNT_OF_EVENT];//Queue[priority]=EVENT_ID
 static void SEND_PACKET(short int);
@@ -635,6 +648,10 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
   GATT_RegisterForInd( simpleBLEPeripheral_TaskID);//Gatt register-->GATT_MSG_EVENT
   RegisterForKeys( simpleBLEPeripheral_TaskID );//Keys register-->KEY_CHANGE
   
+    //-----------------------Buffer
+    HEAD_BUFFER->next=NULL;
+    curbuf_ptr=HEAD_BUFFER;
+    
     //--------------------------------------------------EVENT 1
 	
 	PERIODIC_EVENT[0].ID=SBP_PERIODIC_TASK1;//SBP_PERIODIC_TASK1
@@ -773,6 +790,19 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
 		ReturnEVT=0;
 		
 		if(events & PERIODIC_EVENT[i].ID){
+            /*****************
+            *****************/
+        
+            curbuf_ptr->next=malloc(sizeif(Buffer));
+            
+            curbuf_ptr->next->id=PERIODIC_EVENT[i].ID;
+            curbuf_ptr->next->Arrival_Clock=osal_GetSystemClock();
+            
+            curbuf_ptr=curbuf_ptr->next;
+        
+            /*****************
+            *****************/
+            
 			if(!PERIODIC_EVENT[i].ARRIVAL){
 				PERIODIC_EVENT[i].Arrival_Clock=osal_GetSystemClock();
 			}
@@ -803,6 +833,18 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
 		SCANDATA_Flag=0;
 	}
 	if(Notify_Flag==1){
+      /*
+      for(uint8 count=0; count<seqpktnum; cout++){
+        if(HEAD_BUFFER!=curbuf_ptr){
+            EventSend(curbuf_ptr->id,PERIODIC_EVENT[j].ARRIVAL_COUNT,SYNC);
+            PERIODIC_EVENT[curbuf_ptr->id]
+        } 
+      }
+      */
+    
+    
+    
+    
 	  for(int j=0; j<AMOUNT_OF_EVENT; j++){
 							
 			if(PERIODIC_EVENT[j].ARRIVAL==1){
