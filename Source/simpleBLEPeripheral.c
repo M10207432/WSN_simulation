@@ -215,13 +215,12 @@ uint8 testmode=0;
 
 static void sendData( void );                               //Testing notification
 static void EventSend(uint16, uint16, uint8);               //
-static void ValueNotification(Buffer *);
+static void ValueNotification();
 attHandleValueNoti_t noti;
 uint8 burstData[20] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}; //Send data load (20bytes)
 const uint8 seqpkt=4;
 
 Buffer *HEAD_BUFFER;     //store packet
-Buffer *curbuf_ptr;                      //pointer to the current address
 
 uint8 SYNC=0;
 int packetnum=1;
@@ -651,12 +650,12 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
   GATT_RegisterForInd( simpleBLEPeripheral_TaskID);//Gatt register-->GATT_MSG_EVENT
   RegisterForKeys( simpleBLEPeripheral_TaskID );//Keys register-->KEY_CHANGE
   
-    //-----------------------Buffer
-    HEAD_BUFFER=malloc(sizeof(Buffer));
-    HEAD_BUFFER->next=NULL;
-    HEAD_BUFFER->BufferSize=0;
-    curbuf_ptr=HEAD_BUFFER;
-        
+    //-----------------------Inint Buffer
+    HEAD_BUFFER->size=50;
+    HEAD_BUFFER->count=0;
+    HEAD_BUFFER->cur=0; 
+    HEAD_BUFFER->data=malloc(sizeof(uint8*)*HEAD_BUFFER->size); //data is double array
+    
     //--------------------------------------------------EVENT 1
 	
 	PERIODIC_EVENT[0].ID=SBP_PERIODIC_TASK1;//SBP_PERIODIC_TASK1
@@ -795,43 +794,29 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
         
             /*****************
             *****************/
-            if(HEAD_BUFFER->BufferSize<100){
-                HEAD_BUFFER->BufferSize++;
-                
-                curbuf_ptr->next=malloc(sizeof(Buffer));
-                curbuf_ptr=curbuf_ptr->next;
-                
-                //Event info
-                curbuf_ptr->id=PERIODIC_EVENT[i].ID;
-                curbuf_ptr->Arrival_Clock=osal_GetSystemClock();
-                
-                //Insert clock
-                curbuf_ptr->data[3]=(curbuf_ptr->Arrival_Clock & 0xFF000000)>>24;
-                curbuf_ptr->data[2]=(curbuf_ptr->Arrival_Clock & 0xFF0000)>>16;
-                curbuf_ptr->data[1]=(curbuf_ptr->Arrival_Clock & 0xFF00)>>8;
-                curbuf_ptr->data[0]=(curbuf_ptr->Arrival_Clock & 0xFF);
-                curbuf_ptr->data[4]=0;
-                
-                curbuf_ptr->next=NULL;           
-            }
+            uint32 Arrival_Clock=osal_GetSystemClock();
+            uint8 Load[20];
             
+            Load[4]=(Arrival_Clock & 0xFF000000)>>24;
+            Load[3]=(Arrival_Clock & 0xFF0000)>>16;
+            Load[2]=(Arrival_Clock & 0xFF00)>>8;
+            Load[1]=(Arrival_Clock & 0xFF);
+            Load[0]=PERIODIC_EVENT[i].ID;
+            
+            if(HEAD_BUFFER->count<HEAD_BUFFER->size){
+                HEAD_BUFFER->count++;
+            }else{
+                HEAD_BUFFER->count=0;
+            }
+            osal_memcpy(HEAD_BUFFER->data[count], Load, 20);
+            
+            /*
             if(HEAD_BUFFER->next==NULL){
                 HalLcdWriteStringValue( "Empty:", HEAD_BUFFER->BufferSize, 10,  HAL_LCD_LINE_6);
             }else{
                 HalLcdWriteStringValue( "", HEAD_BUFFER->BufferSize, 10,  HAL_LCD_LINE_6 );
             }
-            /*****************
-            *****************/
-            /*
-			if(!PERIODIC_EVENT[i].ARRIVAL){
-				PERIODIC_EVENT[i].Arrival_Clock=osal_GetSystemClock();
-			}
-			PERIODIC_EVENT[i].ARRIVAL_COUNT=PERIODIC_EVENT[i].ARRIVAL_COUNT+1;
-			PERIODIC_EVENT[i].ARRIVAL=1;
-			
-			Notify_Flag=1;
-			SYNC++;
-			*/
+            */
             
 			osal_start_timerEx( simpleBLEPeripheral_TaskID, PERIODIC_EVENT[i].ID, PERIODIC_EVENT[i].PERIOD);
 			return (events ^ PERIODIC_EVENT[i].ID);//XOR
@@ -948,7 +933,7 @@ static void simpleBLEPeripheralProcessGattMsg(gattMsgEvent_t *pMsg)
 	if(recvmsg==13){
 		
 		osal_set_event( simpleBLEPeripheral_TaskID, SBP_BURST_EVT );
-        ValueNotification(HEAD_BUFFER);
+        ValueNotification();
         
 		/*
 		if(SCANDATA_Flag==1){
@@ -1098,27 +1083,27 @@ static void EventSend(uint16 id,uint16 count, uint8 sync){
 	
 }
 
-static void ValueNotification(Buffer* BUF){
-    uint8 countpkt=0;
-    Buffer* notifybuffer=BUF->next;
+static void ValueNotification(){
+    
 	attHandleValueNoti_t Pkt;
 	uint32 NotifyClock;
+    NotifyClock=osal_GetSystemClock();
     
-    while(notifybuffer!=NULL && (countpkt++)<seqpkt){
-        Pkt.len=20;
-        Pkt.handle=notifybuffer->id;
-        NotifyClock=osal_GetSystemClock();
-        
-        osal_memcpy(&Pkt.value, notifybuffer->data, 20);
-        
-        if(GATT_Notification(gapConnHandle, &Pkt, FALSE)==SUCCESS){}
-        
-        BUF->BufferSize--;
-        BUF->next=notifybuffer->next;
-        notifybuffer=notifybuffer->next;
-        //free(notifybuffer);
-        //notifybuffer=BUF->next;
+    /*******************************
+    *******************************/
+    Pkt.len=20;
+    Pkt.handle=HEAD_BUFFER->data[HEAD_BUFFER->cur][0];
+    osal_memcpy(&Pkt.value, HEAD_BUFFER->data[HEAD_BUFFER->cur], 20);
+    
+    if(GATT_Notification(gapConnHandle, &Pkt, FALSE)==SUCCESS){}
+    
+    /*******************************
+    *******************************/
+    HEAD_BUFFER->cur++;
+    if(HEAD_BUFFER->cur>HEAD_BUFFER->size){
+        HEAD_BUFFER->cur=0;
     }
+    
 }
 /*********************************************************************
  * @fn      Central CallBack
