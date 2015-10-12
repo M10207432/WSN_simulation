@@ -19,17 +19,25 @@
 
 using namespace std;
 
-void Schedule(int propose){
-	switch (propose){
-	case 0:
-		FrameEDFSchedule();
-		break;
-	case 1:
-		TDMASchedule();
-		break;
-	case 2:
-		FrameEDFSchedule_RD();
-		break;
+void Schedule(int propose, int intervalpropose){
+	/*==========================
+			判斷是單一node
+			或是multi node
+	==========================*/
+	if((nodelevel1+nodelevel2)!=1){
+		switch (propose){
+		case 0:
+			FrameEDFSchedule();
+			break;
+		case 1:
+			TDMASchedule();
+			break;
+		case 2:
+			FrameEDFSchedule_RD();
+			break;
+		}
+	}else{
+		SingleNodeSchedule(intervalpropose);
 	}
 
 	CheckPkt();
@@ -1143,5 +1151,121 @@ void FrameEDFSchedule_RD(){
 		if(n->NodeBuffer->load==0 && n->State=="Transmission"){
 			n->State="Sleep";
 		}
+	}
+}
+
+/*=========================================
+			單一node上的schedule
+=========================================*/
+void SingleNodeSchedule(int intervalpropose){
+	Node *n=Head->nextnd;
+	
+	//-------------------------------------Callback Timer Trigger
+	switch(intervalpropose){
+	case 2: //------------DIF
+
+		break;
+	case 3:	//------------Lazy
+		IntervalCB();
+		break;
+	}
+	
+
+	//---------------------------------------判斷connection event是否arrival
+	if(Timeslot % int(n->eventinterval)==0){
+		if(intervalpropose==3){ //------------Lazy
+			LazyOnWrite();		//若有OnWrite則判斷
+		}
+
+		NodeBufferSet(n);
+		n->EvtArrival=true;
+		
+		Head->RecvNode=n;		//Head->RecvNode切換
+		n->State="Transmission";
+	}else{
+		n->EvtArrival=false;
+	}
+
+	//---------------------------------------傳輸
+	if(n->State=="Transmission"){
+		BLE_EDF(n);				//對n做傳輸
+	}
+	Node_EnergyState(n);		//計算n的Energy
+
+	//---------------------------------------傳輸完畢
+	if(n->NodeBuffer->load==0){
+		Head->RecvNode=NULL;
+		n->State="Sleep";
+	}
+
+
+}
+
+/*=========================================
+		Lazy Decrease Alorithm
+=========================================*/
+void LazyOnWrite(){
+	double Rate_data,Rate_BLE;
+	double load=0,min_deadline=-1;
+
+	for(Packet *pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
+		if(pkt->readyflag){
+			load=load+pkt->exeload;
+			if(min_deadline==-1 || pkt->deadline<min_deadline){
+				min_deadline=pkt->deadline;
+			}
+		}
+	}
+	Rate_data=load/(min_deadline-Timeslot);							//計算此時的data rate
+	Rate_BLE=(payload*Maxbuffersize)/(Head->nextnd->eventinterval);	//計算此時的BLE rate
+
+	if(Rate_data>=Rate_BLE){
+		Head->nextnd->eventinterval=1;
+		Callbackclock=EXECBclock;		//Reset timer
+	}
+}
+/*=========================================
+		Timer Callback
+		重新assign connection interval
+=========================================*/
+void IntervalCB(){
+	if(Callbackclock==0){
+		double MaxRate_data,MinRate_BLE,Rate_BLE;
+		double Rate_CB,Rate_reduce;
+		double load=0,min_deadline=-1,long_period=-1;
+
+		for(Packet *pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
+		
+			load=load+pkt->load;
+			if(min_deadline==-1 || pkt->deadline<min_deadline){
+					min_deadline=pkt->deadline;
+			}
+			if(long_period==-1 || pkt->period>long_period){
+				long_period=pkt->period;
+			}
+		}
+
+		MaxRate_data=load/(min_deadline-Timeslot);							//計算此時的data rate
+		Rate_CB=(payload*Maxbuffersize)/EXECBclock;					//計算此時的BLE rate
+		MinRate_BLE=(payload*Maxbuffersize)/(long_period);	//計算此時的BLE rate
+		Rate_BLE=(payload*Maxbuffersize)/(Head->nextnd->eventinterval);	//計算此時的BLE rate
+
+		Rate_reduce=MaxRate_data-MinRate_BLE;
+
+		if(Rate_CB<(Rate_BLE-Rate_reduce) && Rate_reduce>0){
+			Head->nextnd->eventinterval=(payload*Maxbuffersize)/(Rate_BLE-Rate_reduce);
+		}else{
+			//Head->nextnd->eventinterval=(payload*Maxbuffersize)/(2*MinRate_BLE);
+		}
+
+		if(Timeslot==0){
+			Head->nextnd->eventinterval=1;
+		}else if(Head->nextnd->eventinterval<1){
+			Head->nextnd->eventinterval=1;
+		}
+		//Reset timer
+		Callbackclock=EXECBclock;
+	}else{
+		Callbackclock--;
 	}
 }

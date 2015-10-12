@@ -40,8 +40,8 @@ void EventInterval::Algorithm(int Rateproposal){
 	}
 
 	for(Packet *pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
-		packet->exeload=packet->load;
-		packet->exehop=packet->hop;
+		pkt->exeload=pkt->load;
+		pkt->exehop=pkt->hop;
 	}
 	
 }
@@ -215,16 +215,17 @@ void EventInterval::IntervalReassign(){
 	找各個區間(interval)
 	<arrival -> period> 
 step1:找各區間 完整的packet
-step2:各區間的(packet->load加總) 除以 (interval)
+step2:各區間的(packet->load加總) 除以 (interval) <interval會算區間內最大arrival與最大deadline且要排除以assign過的packet區間>
 step3:計算各區間 rate 
 step4:找出最大rate , 其在區間的packet assign 此rate
 (找區間時要將有rate的區間時間拿掉)
 ===========================*/
 void EventInterval::DIF(){
 	PacketQueue();
+
 	DIFMinperiod=ReadyQ->readynextpkt->period;
 	Packet * DIFpacket;
-	map<double,map<double,DIFtable>> Table;	//二維map 內容格式為DIFtable
+	map<double,map<double,DIFtable>> Table;	//二維map 內容格式為DIFtable map[arrival][deadline]
 	double maxarrvial,maxdeadline;			//找最大Density中 的區間
 	double Maxdesity=0;						//找區間中 最大Density
 	bool Doneflag=false;					//全部assign完rate
@@ -260,17 +261,18 @@ void EventInterval::DIF(){
 				while(DIFpacket!=NULL){
 					//確定arrival 比 deadline小
 					if(a->first < p->first){
-						if(a->first <= DIFpacket->arrival && DIFpacket->deadline <= p->first && DIFpacket->rate==0){
+						if(a->first <= DIFpacket->arrival && DIFpacket->deadline <= p->first && DIFpacket->rate==0){ //尚未assigh rate且介於區間內
 							Packet* tmpDIFpacket;
 							double start=a->first;
 							double end=p->first;
 							
 							//放入區間、區間內load總值 以及 此區間Density
-							Table[a->first][p->first].length=p->first - a->first;
+							Table[a->first][p->first].length=p->first - a->first;	//length <deadline-arrival>
 							while(start!=end){
 								
 								tmpDIFpacket=Head->nextnd->pkt;
 								while(tmpDIFpacket!=NULL){
+									//排除在此區間內assign過rate的packet
 									if(tmpDIFpacket->rate!=0){
 										if(start>=tmpDIFpacket->arrival && (start+1)<=tmpDIFpacket->deadline){
 											Table[a->first][p->first].length--;

@@ -22,11 +22,11 @@ using namespace std;
 		Experiment Setting
 ==================================*/
 const float MIN_Uti=1.0;
-const float MAX_Uti=5.0;
+const float MAX_Uti=4.0;
 const short int Set=100;
 
-bool sche_flag=true;					//是否要測試schedulability
-short int Rateproposal=1;				//AssignRate()中的方法編號 0=>Event, 1=>MEI, 2=>DIF 
+bool sche_flag=false;					//是否要測試schedulability
+short int Rateproposal=3;				//AssignRate()中的方法編號 0=>Event, 1=>MEI, 2=>DIF .3=>Lazy <2,3屬於單一node上的調整>
 short int TDMAproposal=0;				//TDMA的assign方法 0=>自己的方法(只有一個superslot), 1=>Node base方法 (會再接續加入superslot)
 short int TDMA_Rateproposal=0;			//TDMA和connection interval上的校正 0=>EIMA, 1=>選最小interval除TDMA size
 short int TDMAscheduleproposal=0;		//Gateway 通知node傳輸順序 0=>做EDF排程 1=>直接照TDMA表做傳輸
@@ -36,12 +36,14 @@ short int TDMAscheduleproposal=0;		//Gateway 通知node傳輸順序 0=>做EDF排程 1=>直
 ==================================*/
 bool preemptionenable=true;			//設定可否preemption
 int Flowinterval=0;					//觸發進入flow的conneciton interval
-int Pktsize=0;							//計算IntervalPower的pkt num
+int Pktsize=0;						//計算IntervalPower的pkt num
 double DIFMinperiod=0;
 double Meetcount=0;
 double AverageE=0;
 int TDMASlot=1;
+int EXECBclock=20;					//Lazy Timer
 
+int Callbackclock;
 Edge *HeadEdge=new Edge;
 Edge *MainEdge=new Edge;
 Edge *ConflictEdge=new Edge;
@@ -177,10 +179,11 @@ int main(){
 			Head->RecvNode=NULL;		//Head 接收節點要設定為NULL
 			Head->FrameSize=0;
 			TDMA_Tbl->currslot=true;	//一開始第一個要為true
+			Callbackclock=0;
 
 			while(Timeslot<Hyperperiod){
 				PacketQueue();
-				Schedule(TDMAscheduleproposal);
+				Schedule(TDMAscheduleproposal,Rateproposal);
 				
 				Timeslot++;
 			}

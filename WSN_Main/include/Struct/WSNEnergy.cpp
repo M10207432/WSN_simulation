@@ -122,6 +122,8 @@ void NodeState(){
 /*========================================
 		對當前的Node做Energy上的計算
 		且當buffer淨空，立即切換State
+		>EvtArrival ==True
+		>State=="Transmission" && Head->RecvNode
 ========================================*/
 
 void Node_EnergyState(Node *node){
