@@ -27,7 +27,8 @@ void FrameEDFSchedule_RD();
 void SingleNodeSchedule(int);
 
 void LazyOnWrite();
-void IntervalCB();
+void LazyIntervalCB();
+void DIFCB();
 
 void Schedule(int,int);
 void CheckPkt();

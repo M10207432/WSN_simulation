@@ -1163,10 +1163,10 @@ void SingleNodeSchedule(int intervalpropose){
 	//-------------------------------------Callback Timer Trigger
 	switch(intervalpropose){
 	case 2: //------------DIF
-
+		DIFCB();
 		break;
 	case 3:	//------------Lazy
-		IntervalCB();
+		LazyIntervalCB();
 		break;
 	}
 	
@@ -1228,7 +1228,7 @@ void LazyOnWrite(){
 		Timer Callback
 		­«·sassign connection interval
 =========================================*/
-void IntervalCB(){
+void LazyIntervalCB(){
 	if(Callbackclock==0){
 		double MaxRate_data,MinRate_BLE,Rate_BLE;
 		double Rate_CB,Rate_reduce;
@@ -1263,6 +1263,26 @@ void IntervalCB(){
 		}else if(Head->nextnd->eventinterval<1){
 			Head->nextnd->eventinterval=1;
 		}
+		//Reset timer
+		Callbackclock=EXECBclock;
+	}else{
+		Callbackclock--;
+	}
+}
+
+void DIFCB(){
+	if(Callbackclock==0){
+		double MaxRate=0;
+		for(Packet *pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
+			if(pkt->readyflag){
+				if(pkt->rate>MaxRate){
+					MaxRate=pkt->rate;
+				}
+			}
+		}
+
+		Head->nextnd->eventinterval=(payload*Maxbuffersize)/MaxRate;
+
 		//Reset timer
 		Callbackclock=EXECBclock;
 	}else{
