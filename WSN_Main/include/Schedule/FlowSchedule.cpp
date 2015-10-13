@@ -1254,8 +1254,6 @@ void LazyIntervalCB(){
 
 		if(Rate_CB<(Rate_BLE-Rate_reduce) && Rate_reduce>0){
 			Head->nextnd->eventinterval=(payload*Maxbuffersize)/(Rate_BLE-Rate_reduce);
-		}else{
-			//Head->nextnd->eventinterval=(payload*Maxbuffersize)/(2*MinRate_BLE);
 		}
 
 		if(Timeslot==0){
@@ -1263,8 +1261,13 @@ void LazyIntervalCB(){
 		}else if(Head->nextnd->eventinterval<1){
 			Head->nextnd->eventinterval=1;
 		}
+
 		//Reset timer
-		Callbackclock=EXECBclock;
+		if(EXECBclock<(Head->nextnd->eventinterval*overheadcount)){
+			Callbackclock=EXECBclock;
+		}else{
+			Callbackclock=Head->nextnd->eventinterval*overheadcount;
+		}
 	}else{
 		Callbackclock--;
 	}
@@ -1273,18 +1276,29 @@ void LazyIntervalCB(){
 void DIFCB(){
 	if(Callbackclock==0){
 		double MaxRate=0;
+		double MinPeriod=-1;
 		for(Packet *pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
+			//找ready好的最大rate
+			
 			if(pkt->readyflag){
 				if(pkt->rate>MaxRate){
 					MaxRate=pkt->rate;
 				}
 			}
+
+			//找Minimum period
+			if(pkt->period<MinPeriod || MinPeriod==-1){
+				MinPeriod=pkt->period;
+			}
 		}
 
 		Head->nextnd->eventinterval=(payload*Maxbuffersize)/MaxRate;
-
+		if(Head->nextnd->eventinterval<1){
+			Head->nextnd->eventinterval=1;
+		}
+		
 		//Reset timer
-		Callbackclock=EXECBclock;
+		Callbackclock=Head->nextnd->eventinterval*overheadcount;	//至少需要六次後才能做更改
 	}else{
 		Callbackclock--;
 	}

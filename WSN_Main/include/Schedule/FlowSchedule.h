@@ -10,6 +10,7 @@ extern int TDMASlot;
 extern int EXECBclock;			//做DIF與Lazy 計時器
 extern int Callbackclock;			//做DIF與Lazy 計時器
 extern TDMATable *NotifyTable;
+extern int overheadcount;
 
 void FlowEDF();
 void PacketQueue();

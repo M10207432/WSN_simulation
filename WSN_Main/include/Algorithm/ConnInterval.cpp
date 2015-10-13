@@ -219,6 +219,8 @@ step2:¦U°Ï¶¡ªº(packet->load¥[Á`) °£¥H (interval) <interval·|ºâ°Ï¶¡¤º³Ì¤jarrival»
 step3:­pºâ¦U°Ï¶¡ rate 
 step4:§ä¥X³Ì¤jrate , ¨ä¦b°Ï¶¡ªºpacket assign ¦¹rate
 (§ä°Ï¶¡®É­n±N¦³rateªº°Ï¶¡®É¶¡®³±¼)
+
+¤À°t¦n¨C¤@packetªºrate
 ===========================*/
 void EventInterval::DIF(){
 	PacketQueue();
@@ -285,7 +287,7 @@ void EventInterval::DIF(){
 								start++;
 							}
 
-							Table[a->first][p->first].load=Table[a->first][p->first].load+DIFpacket->load;
+							Table[a->first][p->first].load=Table[a->first][p->first].load+DIFpacket->load*((p->first-a->first)/DIFpacket->period);
 							Table[a->first][p->first].density=Table[a->first][p->first].load/Table[a->first][p->first].length;
 							
 							//§ä¥X³Ì¤jrate,¨Ã¬ö¿ý°Ï¶¡

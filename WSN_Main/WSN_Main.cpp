@@ -26,11 +26,12 @@ const float MAX_Uti=4.0;
 const short int Set=100;
 
 bool sche_flag=false;					//是否要測試schedulability
-short int Rateproposal=3;				//AssignRate()中的方法編號 0=>Event, 1=>MEI, 2=>DIF .3=>Lazy <2,3屬於單一node上的調整>
+short int Rateproposal=1;				//AssignRate()中的方法編號 0=>Event, 1=>MEI, 2=>DIF .3=>Lazy <2,3屬於單一node上的調整>
 short int TDMAproposal=0;				//TDMA的assign方法 0=>自己的方法(只有一個superslot), 1=>Node base方法 (會再接續加入superslot)
 short int TDMA_Rateproposal=0;			//TDMA和connection interval上的校正 0=>EIMA, 1=>選最小interval除TDMA size
 short int TDMAscheduleproposal=0;		//Gateway 通知node傳輸順序 0=>做EDF排程 1=>直接照TDMA表做傳輸
 
+int EXECBclock=100;						//Lazy Timer
 /*=================================
 		Global value
 ==================================*/
@@ -41,7 +42,7 @@ double DIFMinperiod=0;
 double Meetcount=0;
 double AverageE=0;
 int TDMASlot=1;
-int EXECBclock=20;					//Lazy Timer
+int overheadcount=6;				//動態改變interval時需要等待6個interval才能變動
 
 int Callbackclock;
 Edge *HeadEdge=new Edge;
