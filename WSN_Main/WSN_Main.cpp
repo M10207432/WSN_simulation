@@ -28,8 +28,8 @@ const short int Set=100;
 bool sche_flag=false;					//是否要測試schedulability
 short int Rateproposal=1;				//AssignRate()中的方法編號 0=>Event, 1=>MEI, 2=>DIF .3=>Lazy <2,3屬於單一node上的調整>
 short int TDMAproposal=0;				//TDMA的assign方法 0=>自己的方法(只有一個superslot), 1=>Node base方法 (會再接續加入superslot)
-short int TDMA_Rateproposal=0;			//TDMA和connection interval上的校正 0=>EIMA, 1=>選最小interval除TDMA size
-short int TDMAscheduleproposal=0;		//Gateway 通知node傳輸順序 0=>做EDF排程 1=>直接照TDMA表做傳輸
+short int TDMA_Rateproposal=2;			//TDMA和connection interval上的校正 0=>EIMA, 1=>選最小interval除TDMA size, 2=>照lifetime ratio
+short int TDMAscheduleproposal=2;		//Gateway 通知node傳輸順序 0=>做EDF排程 1=>直接照TDMA表做傳輸
 
 int EXECBclock=100;						//Lazy Timer
 /*=================================
@@ -87,7 +87,7 @@ bool Meetflag=true;					//看是否meet deadline
 double Vcc=3.3;			//BLE 驅動電壓
 
 double I_sleep=0.000001;	//Sleep 電流 1uA
-double Time_sleep=0.01;		//Sleep 電流 10ms
+double Time_sleep=0.01;		//Sleep 時間 10ms (uint time)
 double I_notify=0.0082463;	//Notify 電流 8.2463mA
 double Time_notify=0.002775;	//Notify 時間 2.775ms
 double I_Tran=0.0142744;	//Transmission 電流 14.2744mA

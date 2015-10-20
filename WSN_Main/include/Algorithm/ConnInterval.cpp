@@ -11,6 +11,7 @@
 #include "../Struct/WSNStruct.h"
 #include "ConnInterval.h"
 #include "../Schedule/FlowSchedule.h"
+#include "../Struct/WSNEnergy.h"
 
 #undef  _ShowLog
 
@@ -58,6 +59,9 @@ void EventInterval::Interval_TDMA_Algorithm(int proposal){
 		break;
 	case 1:
 		IntervalDivide();
+		break;
+	case 2:
+		EIMA_2();
 		break;
 	default:
 		break;
@@ -578,4 +582,80 @@ void EventInterval::ConnectionPriority(){
 		}
 		assignnode=NULL;
 	}
+}
+
+void EventInterval::EIMA_2(){
+	bool EIMAEDF_flag=true;	//測試EIMA EDF 上對於inteval上的調整
+
+	double TDMASize=1;	//TDMASIZE
+	double Mininterval=Hyperperiod;	//最小的interval
+	double tmpinterval=Hyperperiod;
+	int devicenum=0;	//device 數量
+	int MaxAdvinter=0;	//對應廣播群中最大的廣播間距
+	short int frameid=1;
+
+	double res_total_u=0;
+	for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd){
+		res_total_u=res_total_u+1/(((I_notify*Time_notify)+(I_sleep*(n->eventinterval-Time_notify)))/n->eventinterval);
+	}
+	//-------------------------------Assign給FrameTbl,只有Connection node為3個用
+	FrameTbl=new FrameTable;
+	FrameTable* Ftbl=FrameTbl;
+	
+	for(TDMATable* tbl=TDMA_Tbl; tbl!=NULL; tbl=tbl->next_tbl){
+		if(tbl->slot==frameid && tbl->n1->SendNode==Head){
+			Ftbl->id=frameid++;
+			Ftbl->Currentflag=false;
+			Ftbl->arrival=0;
+			Ftbl->Period=tbl->n1->eventinterval;
+			Ftbl->Deadline=tbl->n1->eventinterval;
+			/*---------------------------------------
+			---------------------------------------*/
+			
+			Ftbl->Size=(((1/(((I_notify*Time_notify)+(I_sleep*(tbl->n1->eventinterval-Time_notify)))/tbl->n1->eventinterval))/res_total_u))
+						* tbl->n1->eventinterval;
+
+			/*---------------------------------------
+			---------------------------------------*/
+			Ftbl->Utilization=1/nodelevel1;
+			Ftbl->ConnNode= tbl->n1;			//指向此Conn Node
+			tbl->n1->eventinterval=Ftbl->Size;	//更新node上的connection interval
+
+			Ftbl->next_tbl=new FrameTable;
+			Ftbl->next_tbl->pre_tbl=Ftbl;
+			Ftbl=Ftbl->next_tbl;
+		}
+	}
+	Ftbl->pre_tbl->next_tbl=NULL;
+	//-------------------------------------Assign 給 AdvNode使用
+	/*
+	for(FrameTable* Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
+		for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd)	{
+			if(n->SendNode!=Head){
+				
+			}
+		}
+	}
+	*/
+	if(--frameid>3){
+		printf("The Frame size is larger than three, the FrameTable is error\n");
+		system("PAUSE");
+	}
+	
+	
+	//---------------------------------Print 出資訊
+#ifdef _Showlog
+	for(Node* node=Head->nextnd; node!=NULL; node=node->nextnd){
+		cout<<	"Node"<<node->id<<"=> "<<
+				"Interval="<<node->eventinterval<<", "<<
+				"Slot="<<node->color<<", "<<
+				"Scan Duaration="<<node->ScanDuration<<", "<<
+				"SendNode="<<node->SendNode->id<<endl;
+	}
+	for(FrameTable* Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
+		cout<<"Frame"<<Ftbl->id<<" =>"<<
+			" size="<< Ftbl->Size<<","<<
+			" period="<<Ftbl->Period<<endl;
+	}
+#endif
 }
