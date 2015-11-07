@@ -163,6 +163,8 @@ void StructGEN(){
 			packet->searchdone=0;													//ready flag
 			packet->rate=0;
 			packet->State="Idle";
+			packet->CMP_D=packet->deadline;
+			packet->Miss_count=0;
 			
 			//¤U¤@­Ópacket
 			packet=packet->nextpkt;

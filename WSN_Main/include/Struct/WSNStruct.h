@@ -36,7 +36,8 @@ struct Node{
 	short int edge;			//連接數目
 	bool order_flag;		//在coloring時，是否找過
 	short int arrival_flag;	//0->Interval並未到、1->已arrival、-1->剛剛傳輸完畢
-	
+	double miss_ratio;
+
 	string State;			//Wakeup, Sleep, Transmission, Idle & Scan
 	Packet* pkt;
 	Packet* pktQueue;
@@ -89,6 +90,9 @@ struct Packet{
 	int destination;	//Nest node
 	double rate;
 	double SCAN_Duration;	//
+
+	short int CMP_D;		//判斷是否在此deadline前arrival，有=>往上疊加 否=>Miss_count++ 並往上疊加 (放於FlowSchedule下CheckPkt method)
+	short int Miss_count;	//Miss counting (放於FlowSchedule下CheckPkt method)
 
 	Node* node;
 

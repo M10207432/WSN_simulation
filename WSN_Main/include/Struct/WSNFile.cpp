@@ -12,7 +12,7 @@
 #undef  _ShowLog
 
 using namespace std;
-
+static double miss_ration=0;
 /*===========================
 		GEN & Output 
 		File Path
@@ -164,7 +164,17 @@ void SaveFile(short int setnum){
 							<<Ftbl->Size<<", "
 							<<Ftbl->Period<<endl;
 	}
+	//--------------------------------------------­pºâmiss ratio
+	double Recv_count=0;
+	double Miss_count=0;
+	for(Packet* pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
+		Recv_count=Recv_count+Hyperperiod/pkt->period;
+		Miss_count=Miss_count+pkt->Miss_count;
+	}
+	Resultfile<<"Meet ratio:"<<Miss_count/Recv_count<<endl;
+	//cout<<"Meet ratio:"<<Miss_count/Recv_count<<endl;
 
+	//--------------------------------------------¬O§_meet
 	if(Meetflag==true){
 		Resultfile<<"Meet Deadline:MEET"<<endl;
 		#ifdef _ShowLog
@@ -185,6 +195,8 @@ void SaveFile(short int setnum){
 		Meetcount++;
 	}
 	else{
+		miss_ration=miss_ration+(Miss_count/Recv_count);
+		
 		Resultfile<<"Meet Deadline:MISS"<<endl;
 		#ifdef _ShowLog
 		cout<<"Meet Deadline:MISS"<<endl;
@@ -217,15 +229,17 @@ void SaveSet(int Set){
 	Finalfile<<"FinalResult"<<endl;
 	Finalfile<<"Meet="<<Meetcount<<endl;
 	Finalfile<<"Miss="<<Set-Meetcount<<endl;
-	Finalfile<<"MeetRatio="<<Meetcount/Set<<endl;
+	Finalfile<<"SetAmount_MeetRatio="<<Meetcount/Set<<endl;
 	SetNode=SetHead->nextnd;
 	while(SetNode!=NULL){
 		Finalfile<<"Node"<<SetNode->id<<"="<<SetNode->avgenergy/Meetcount<<endl;
 		SetNode=SetNode->nextnd;
 	}
+	Finalfile<<"Miss ratio="<<miss_ration/(Set-Meetcount)<<endl;
 	Finalfile<<"AverageEnergy="<<AverageE/Meetcount<<endl;
 	Finalfile<<"=============================================="<<endl;
-
+	
+	miss_ration=0;
 	GENfile.close();
 	Schdulefile.close();
 	Resultfile.close();

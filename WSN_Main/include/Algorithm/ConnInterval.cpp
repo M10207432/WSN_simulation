@@ -25,8 +25,7 @@ EventInterval::EventInterval(){
 		Connection interval 計算方式
 ==============================================*/
 void EventInterval::Algorithm(int Rateproposal){
-	switch (Rateproposal)
-	{
+	switch (Rateproposal){
 	case 0:
 		Event();
 		break;
@@ -52,8 +51,7 @@ void EventInterval::Algorithm(int Rateproposal){
 		Connection interval 結合TDMA修正方式
 ==============================================*/
 void EventInterval::Interval_TDMA_Algorithm(int proposal){
-	switch (proposal)
-	{
+	switch (proposal){
 	case 0:
 		EIMA();
 		break;
@@ -614,7 +612,7 @@ void EventInterval::EIMA_2(){
 			
 			Ftbl->Size=(((1/(((I_notify*Time_notify)+(I_sleep*(tbl->n1->eventinterval-Time_notify)))/tbl->n1->eventinterval))/res_total_u))
 						* tbl->n1->eventinterval;
-
+			Ftbl->Size=Ftbl->Size-1;
 			/*---------------------------------------
 			---------------------------------------*/
 			Ftbl->Utilization=1/nodelevel1;

@@ -194,6 +194,7 @@ void FlowEDF(){
 						packet->exeload=packet->load;
 						packet->arrival=packet->deadline;
 						packet->deadline=packet->deadline+packet->period;
+						packet->CMP_D=packet->CMP_D+packet->period;
 						packet->State="Idle";		//傳輸狀態
 						packet->exehop=packet->hop;	
 					}
@@ -550,7 +551,10 @@ void Schedulability(){
 void CheckPkt(){
 
 	for(Packet *pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
-		if(pkt->deadline<=Timeslot){
+		if( pkt->CMP_D<=Timeslot && pkt->deadline<=Timeslot){
+			pkt->CMP_D=pkt->CMP_D+pkt->period;
+			pkt->Miss_count++;	
+
 			Schdulefile<<Timeslot<<" ";
 			Schdulefile<<"Node"<<pkt->nodeid<<" (PKT"<<pkt->id<<" Miss deadline"<<" Deadline "<<pkt->deadline<<")";
 			Schdulefile<<endl;
@@ -655,6 +659,7 @@ void BLE_EDF(Node *node){
 				packet->exeload=packet->load;
 				packet->arrival=packet->deadline;
 				packet->deadline=packet->deadline+packet->period;
+				packet->CMP_D=packet->CMP_D+packet->period;
 				packet->exehop=packet->hop;	
 
 				//Buffer往前移動
