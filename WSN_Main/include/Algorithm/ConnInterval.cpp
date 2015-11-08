@@ -594,7 +594,7 @@ void EventInterval::EIMA_2(){
 
 	double res_total_u=0;
 	for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd){
-		res_total_u=res_total_u+1/(((I_notify*Time_notify)+(I_sleep*(n->eventinterval-Time_notify)))/n->eventinterval);
+		res_total_u=res_total_u+1/(BatteryCapacity/(((I_notify*Time_notify)+(I_sleep*(n->eventinterval*unit-Time_notify)))/(n->eventinterval*unit)));
 	}
 	//-------------------------------Assign給FrameTbl,只有Connection node為3個用
 	FrameTbl=new FrameTable;
@@ -610,7 +610,7 @@ void EventInterval::EIMA_2(){
 			/*---------------------------------------
 			---------------------------------------*/
 			
-			Ftbl->Size=(((1/(((I_notify*Time_notify)+(I_sleep*(tbl->n1->eventinterval-Time_notify)))/tbl->n1->eventinterval))/res_total_u))
+			Ftbl->Size=(((1/(BatteryCapacity/(((I_notify*Time_notify)+(I_sleep*(tbl->n1->eventinterval*unit-Time_notify)))/(tbl->n1->eventinterval*unit))))/res_total_u))
 						* tbl->n1->eventinterval;
 			Ftbl->Size=Ftbl->Size-1;
 			/*---------------------------------------

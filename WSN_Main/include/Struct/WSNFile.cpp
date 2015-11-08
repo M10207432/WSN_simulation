@@ -23,7 +23,7 @@ fstream Schdulefile;
 fstream Finalfile;
 fstream Resultfile;
 
-string GENPath="..\\GENresult\\";
+string GENPath="..\\GENresult\\input_varied\\";
 string SchedulePath="..\\WSNresult\\Debug\\";
 string FinalPath="..\\WSNresult\\Debug\\";
 string ResultPath="..\\WSNresult\\Debug\\";
@@ -175,12 +175,34 @@ void SaveFile(short int setnum){
 	//cout<<"Meet ratio:"<<Miss_count/Recv_count<<endl;
 
 	//--------------------------------------------是否meet
+	//Cal Energy
+	node=Head->nextnd;
+	SetNode=SetHead->nextnd;
+	while(node!=NULL){
+		SetNode->avgenergy=SetNode->avgenergy+node->energy;
+
+		SetNode=SetNode->nextnd;
+		node=node->nextnd;
+	}
+
+	//Cal lifetime(放於SetHead中)
+	double minlifetime=-1;
+	SetNode=SetHead->nextnd;
+	for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd){
+		if(minlifetime==-1 || n->lifetime<minlifetime){
+			minlifetime=n->lifetime;
+		}
+	}
+	SetHead->lifetime+=minlifetime;
+	AverageE=AverageE+totalenergy;
+
 	if(Meetflag==true){
 		Resultfile<<"Meet Deadline:MEET"<<endl;
 		#ifdef _ShowLog
 				cout<<"Meet Deadsline:MEET"<<endl;
 		#endif
-				
+		/*
+		//Cal Energy
 		node=Head->nextnd;
 		SetNode=SetHead->nextnd;
 		while(node!=NULL){
@@ -189,9 +211,19 @@ void SaveFile(short int setnum){
 			SetNode=SetNode->nextnd;
 			node=node->nextnd;
 		}
+
+		//Cal lifetime(放於SetHead中)
+		double minlifetime=-1;
 		SetNode=SetHead->nextnd;
+		for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd){
+			if(minlifetime==-1 || n->lifetime<minlifetime){
+				minlifetime=n->lifetime;
+			}
+		}
+		SetHead->lifetime+=minlifetime;
 
 		AverageE=AverageE+totalenergy;
+		*/
 		Meetcount++;
 	}
 	else{
@@ -220,10 +252,10 @@ void SaveSet(int Set){
 	cout<<"MeetRatio="<<Meetcount/Set<<endl;
 	SetNode=SetHead->nextnd;
 	while(SetNode!=NULL){
-		cout<<"Node"<<SetNode->id<<"="<<SetNode->avgenergy/Meetcount<<endl;
+		cout<<"Node"<<SetNode->id<<"="<<SetNode->avgenergy/Set<<endl;
 		SetNode=SetNode->nextnd;
 	}
-	cout<<"AverageEnergy="<<AverageE/Meetcount<<endl;
+	cout<<"AverageEnergy="<<AverageE/Set<<endl;
 	cout<<"=============================================="<<endl;
 
 	Finalfile<<"FinalResult"<<endl;
@@ -232,11 +264,12 @@ void SaveSet(int Set){
 	Finalfile<<"SetAmount_MeetRatio="<<Meetcount/Set<<endl;
 	SetNode=SetHead->nextnd;
 	while(SetNode!=NULL){
-		Finalfile<<"Node"<<SetNode->id<<"="<<SetNode->avgenergy/Meetcount<<endl;
+		Finalfile<<"Node"<<SetNode->id<<"="<<SetNode->avgenergy/Set<<endl;
 		SetNode=SetNode->nextnd;
 	}
 	Finalfile<<"Miss ratio="<<miss_ration/(Set-Meetcount)<<endl;
-	Finalfile<<"AverageEnergy="<<AverageE/Meetcount<<endl;
+	Finalfile<<"Lifetime="<<(SetHead->lifetime)/(Set)<<endl;
+	Finalfile<<"AverageEnergy="<<AverageE/Set<<endl;
 	Finalfile<<"=============================================="<<endl;
 	
 	miss_ration=0;
