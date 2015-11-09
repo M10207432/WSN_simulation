@@ -20,6 +20,8 @@
 using namespace std;
 
 void Schedule(int propose, int intervalpropose){
+
+	CheckPkt();
 	/*==========================
 			判斷是單一node
 			或是multi node
@@ -40,7 +42,7 @@ void Schedule(int propose, int intervalpropose){
 		SingleNodeSchedule(intervalpropose);
 	}
 
-	CheckPkt();
+	
 }
 
 /*==========================
