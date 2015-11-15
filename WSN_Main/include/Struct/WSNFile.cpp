@@ -12,7 +12,8 @@
 #undef  _ShowLog
 
 using namespace std;
-
+static double miss_ration=0;
+static double total_latency=0;
 /*===========================
 		GEN & Output 
 		File Path
@@ -23,7 +24,7 @@ fstream Schdulefile;
 fstream Finalfile;
 fstream Resultfile;
 
-string GENPath="..\\GENresult\\";
+string GENPath="..\\GENresult\\input_varied\\";
 string SchedulePath="..\\WSNresult\\Debug\\";
 string FinalPath="..\\WSNresult\\Debug\\";
 string ResultPath="..\\WSNresult\\Debug\\";
@@ -34,7 +35,7 @@ string ResultPath="..\\WSNresult\\Debug\\";
 ===========================*/
 void CreateFile(float U,int Set){
 	//放入GEN的檔名
-	filename="U";filename.append(to_string(U));filename.append("_Set");filename.append(to_string(Set));filename.append(".txt");
+	filename="Rate";filename.append(to_string(U));filename.append("_Set");filename.append(to_string(Set));filename.append(".txt");
 
 	//放入GEN的 路徑+檔名
 	string GENBuffer=GENPath;
@@ -164,13 +165,48 @@ void SaveFile(short int setnum){
 							<<Ftbl->Size<<", "
 							<<Ftbl->Period<<endl;
 	}
+	//--------------------------------------------計算miss ratio
+	double Recv_count=0;
+	double Miss_count=0;
+	double latency=0;
+	for(Packet* pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
+		Recv_count=Recv_count+Hyperperiod/pkt->period;
+		Miss_count=Miss_count+pkt->Miss_count;
+		latency=latency+pkt->latency;
+	}
+	Resultfile<<"Meet ratio:"<<Miss_count/Recv_count<<endl;
+	Resultfile<<"Latency:"<<latency/Miss_count<<endl;
+	//cout<<"Meet ratio:"<<Miss_count/Recv_count<<endl;
+
+	//--------------------------------------------是否meet
+	//Cal Energy
+	node=Head->nextnd;
+	SetNode=SetHead->nextnd;
+	while(node!=NULL){
+		SetNode->avgenergy=SetNode->avgenergy+node->energy;
+
+		SetNode=SetNode->nextnd;
+		node=node->nextnd;
+	}
+
+	//Cal lifetime(放於SetHead中)
+	double minlifetime=-1;
+	SetNode=SetHead->nextnd;
+	for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd){
+		if(minlifetime==-1 || n->lifetime<minlifetime){
+			minlifetime=n->lifetime;
+		}
+	}
+	SetHead->lifetime+=minlifetime;
+	AverageE=AverageE+totalenergy;
 
 	if(Meetflag==true){
 		Resultfile<<"Meet Deadline:MEET"<<endl;
 		#ifdef _ShowLog
 				cout<<"Meet Deadsline:MEET"<<endl;
 		#endif
-				
+		/*
+		//Cal Energy
 		node=Head->nextnd;
 		SetNode=SetHead->nextnd;
 		while(node!=NULL){
@@ -179,12 +215,25 @@ void SaveFile(short int setnum){
 			SetNode=SetNode->nextnd;
 			node=node->nextnd;
 		}
+
+		//Cal lifetime(放於SetHead中)
+		double minlifetime=-1;
 		SetNode=SetHead->nextnd;
+		for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd){
+			if(minlifetime==-1 || n->lifetime<minlifetime){
+				minlifetime=n->lifetime;
+			}
+		}
+		SetHead->lifetime+=minlifetime;
 
 		AverageE=AverageE+totalenergy;
+		*/
 		Meetcount++;
 	}
 	else{
+		miss_ration=miss_ration+(Miss_count/Recv_count);
+		total_latency=total_latency+(latency);
+
 		Resultfile<<"Meet Deadline:MISS"<<endl;
 		#ifdef _ShowLog
 		cout<<"Meet Deadline:MISS"<<endl;
@@ -208,24 +257,32 @@ void SaveSet(int Set){
 	cout<<"MeetRatio="<<Meetcount/Set<<endl;
 	SetNode=SetHead->nextnd;
 	while(SetNode!=NULL){
-		cout<<"Node"<<SetNode->id<<"="<<SetNode->avgenergy/Meetcount<<endl;
+		cout<<"Node"<<SetNode->id<<"="<<SetNode->avgenergy/Set<<endl;
 		SetNode=SetNode->nextnd;
 	}
-	cout<<"AverageEnergy="<<AverageE/Meetcount<<endl;
+	cout<<"Miss ratio="<<miss_ration/(Set-Meetcount)<<endl;
+	cout<<"Latency="<<total_latency/(Set-Meetcount)<<endl;
+	cout<<"Lifetime="<<(SetHead->lifetime)/(Set)<<endl;
+	cout<<"AverageEnergy="<<AverageE/Set<<endl;
 	cout<<"=============================================="<<endl;
 
 	Finalfile<<"FinalResult"<<endl;
 	Finalfile<<"Meet="<<Meetcount<<endl;
 	Finalfile<<"Miss="<<Set-Meetcount<<endl;
-	Finalfile<<"MeetRatio="<<Meetcount/Set<<endl;
+	Finalfile<<"SetAmount_MeetRatio="<<Meetcount/Set<<endl;
 	SetNode=SetHead->nextnd;
 	while(SetNode!=NULL){
-		Finalfile<<"Node"<<SetNode->id<<"="<<SetNode->avgenergy/Meetcount<<endl;
+		Finalfile<<"Node"<<SetNode->id<<"="<<SetNode->avgenergy/Set<<endl;
 		SetNode=SetNode->nextnd;
 	}
-	Finalfile<<"AverageEnergy="<<AverageE/Meetcount<<endl;
+	Finalfile<<"Miss ratio="<<miss_ration/(Set-Meetcount)<<endl;
+	Finalfile<<"Latency="<<total_latency/(Set-Meetcount)<<endl;
+	Finalfile<<"Lifetime="<<(SetHead->lifetime)/(Set)<<endl;
+	Finalfile<<"AverageEnergy="<<AverageE/Set<<endl;
 	Finalfile<<"=============================================="<<endl;
-
+	
+	total_latency=0;
+	miss_ration=0;
 	GENfile.close();
 	Schdulefile.close();
 	Resultfile.close();

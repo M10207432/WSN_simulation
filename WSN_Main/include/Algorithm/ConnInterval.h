@@ -18,6 +18,7 @@ class EventInterval{
 		void Interval_TDMA_Algorithm(int);
 
 		void EIMA();
+		void EIMA_2();
 		void IntervalDivide();
 
 		void ConnectionPriority();

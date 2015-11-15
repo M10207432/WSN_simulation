@@ -19,20 +19,30 @@
 
 using namespace std;
 
-void Schedule(int propose){
-	switch (propose){
-	case 0:
-		FrameEDFSchedule();
-		break;
-	case 1:
-		TDMASchedule();
-		break;
-	case 2:
-		FrameEDFSchedule_RD();
-		break;
-	}
+void Schedule(int propose, int intervalpropose){
 
 	CheckPkt();
+	/*==========================
+			判斷是單一node
+			或是multi node
+	==========================*/
+	if((nodelevel1+nodelevel2)!=1){
+		switch (propose){
+		case 0:
+			FrameEDFSchedule();
+			break;
+		case 1:
+			TDMASchedule();
+			break;
+		case 2:
+			FrameEDFSchedule_RD();
+			break;
+		}
+	}else{
+		SingleNodeSchedule(intervalpropose);
+	}
+
+	
 }
 
 /*==========================
@@ -186,6 +196,7 @@ void FlowEDF(){
 						packet->exeload=packet->load;
 						packet->arrival=packet->deadline;
 						packet->deadline=packet->deadline+packet->period;
+						packet->CMP_D=packet->CMP_D+packet->period;
 						packet->State="Idle";		//傳輸狀態
 						packet->exehop=packet->hop;	
 					}
@@ -542,7 +553,10 @@ void Schedulability(){
 void CheckPkt(){
 
 	for(Packet *pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
-		if(pkt->deadline<=Timeslot){
+		if( pkt->CMP_D<=Timeslot && pkt->deadline<=Timeslot){
+			pkt->CMP_D=pkt->CMP_D+pkt->period;
+			pkt->Miss_count++;	
+
 			Schdulefile<<Timeslot<<" ";
 			Schdulefile<<"Node"<<pkt->nodeid<<" (PKT"<<pkt->id<<" Miss deadline"<<" Deadline "<<pkt->deadline<<")";
 			Schdulefile<<endl;
@@ -638,6 +652,8 @@ void BLE_EDF(Node *node){
 					cout<<"(PKT"<<packet->id<<" Miss deadline"<<" Deadline "<<packet->deadline<<")";
 #endif
 					Schdulefile<<"(PKT"<<packet->id<<" Miss deadline"<<" Deadline "<<packet->deadline<<")";
+					
+					packet->latency=packet->latency+(Timeslot-packet->deadline);//Record latency
 
 					Meetflag=false;
 					//system("PAUSE");
@@ -647,6 +663,7 @@ void BLE_EDF(Node *node){
 				packet->exeload=packet->load;
 				packet->arrival=packet->deadline;
 				packet->deadline=packet->deadline+packet->period;
+				//packet->CMP_D=packet->CMP_D+packet->period;
 				packet->exehop=packet->hop;	
 
 				//Buffer往前移動
@@ -955,6 +972,8 @@ void TDMASchedule(){
 		Head->FrameSize=Work_tbl->Size;
 
 		Work_tbl->Deadline=Work_tbl->Deadline+Work_tbl->Period;
+
+		Head->FrameSize--;
 	}else{
 		Head->FrameSize--;
 	}
@@ -1062,21 +1081,25 @@ void FrameEDFSchedule_RD(){
 
 		//
 		if(Work_tbl!=NULL){
+			
 			if(CrticalFrame!=Work_tbl){
 				if(CrticalFrame->Deadline < (int(Work_tbl->Size)+int(CrticalFrame->Size)+Timeslot)){
-					if(Timeslot >= Work_tbl->arrival){
+					if(Timeslot >= CrticalFrame->arrival){
 						Work_tbl=CrticalFrame;
 					}else{
 						Work_tbl=NULL;
 					}
 				}
 			}
-				
+			
 			if(Work_tbl!=NULL){
 				Work_tbl->arrival=Work_tbl->arrival+Work_tbl->Period;
 				Work_tbl->ConnNode->State="Notify";
 				Head->FrameSize=Work_tbl->Size;
 				Work_tbl->Deadline=Work_tbl->Deadline+Work_tbl->Period;
+
+				
+				Head->FrameSize--;
 			}
 		}
 		//Work_tbl->Deadline=Timeslot+Work_tbl->Period;
@@ -1136,6 +1159,164 @@ void FrameEDFSchedule_RD(){
 		Node_EnergyState(n);	//計算n的Energy
 		if(n->NodeBuffer->load==0 && n->State=="Transmission"){
 			n->State="Sleep";
+		}
+	}
+}
+
+/*=========================================
+			單一node上的schedule
+=========================================*/
+void SingleNodeSchedule(int intervalpropose){
+	Node *n=Head->nextnd;
+	
+	//-------------------------------------Callback Timer Trigger
+	switch(intervalpropose){
+	case 2: //------------DIF
+		DIFCB();
+		break;
+	case 3:	//------------Lazy
+		LazyIntervalCB();
+		break;
+	}
+	
+
+	//---------------------------------------判斷connection event是否arrival
+	if(Timeslot % int(n->eventinterval)==0){
+		if(intervalpropose==3){ //------------Lazy
+			LazyOnWrite();		//若有OnWrite則判斷
+		}
+
+		NodeBufferSet(n);
+		n->EvtArrival=true;
+		
+		Head->RecvNode=n;		//Head->RecvNode切換
+		n->State="Transmission";
+	}else{
+		n->EvtArrival=false;
+	}
+
+	//---------------------------------------傳輸
+	if(n->State=="Transmission"){
+		BLE_EDF(n);				//對n做傳輸
+	}
+	Node_EnergyState(n);		//計算n的Energy
+
+	//---------------------------------------傳輸完畢
+	if(n->NodeBuffer->load==0){
+		Head->RecvNode=NULL;
+		n->State="Sleep";
+	}
+
+
+}
+
+/*=========================================
+		Lazy Decrease Alorithm
+=========================================*/
+void LazyOnWrite(){
+	double Rate_data,Rate_BLE;
+	double load=0,min_deadline=-1;
+
+	for(Packet *pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
+		if(pkt->readyflag){
+			load=load+pkt->exeload;
+			if(min_deadline==-1 || pkt->deadline<min_deadline){
+				min_deadline=pkt->deadline;
+			}
+		}
+	}
+	Rate_data=load/(min_deadline-Timeslot);							//計算此時的data rate
+	Rate_BLE=(payload*Maxbuffersize)/(Head->nextnd->eventinterval);	//計算此時的BLE rate
+
+	if(Rate_data>=Rate_BLE){
+		Head->nextnd->eventinterval=1;
+		Callbackclock=EXECBclock;		//Reset timer
+	}
+}
+/*=========================================
+		Timer Callback
+		重新assign connection interval
+=========================================*/
+void LazyIntervalCB(){
+	if(Callbackclock==0){
+		double MaxRate_data,MinRate_BLE,Rate_BLE;
+		double Rate_CB,Rate_reduce;
+		double load=0,min_deadline=-1,long_period=-1;
+
+		for(Packet *pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
+		
+			load=load+pkt->load;
+			if(min_deadline==-1 || pkt->deadline<min_deadline){
+					min_deadline=pkt->deadline;
+			}
+			if(long_period==-1 || pkt->period>long_period){
+				long_period=pkt->period;
+			}
+		}
+
+		MaxRate_data=load/(min_deadline-Timeslot);							//計算此時的data rate
+		Rate_CB=(payload*Maxbuffersize)/EXECBclock;					//計算此時的BLE rate
+		MinRate_BLE=(payload*Maxbuffersize)/(long_period);	//計算此時的BLE rate
+		Rate_BLE=(payload*Maxbuffersize)/(Head->nextnd->eventinterval);	//計算此時的BLE rate
+
+		Rate_reduce=MaxRate_data-MinRate_BLE;
+
+		if(Rate_CB<(Rate_BLE-Rate_reduce) && Rate_reduce>0){
+			Head->nextnd->eventinterval=(payload*Maxbuffersize)/(Rate_BLE-Rate_reduce);
+		}
+
+		if(Timeslot==0){
+			Head->nextnd->eventinterval=1;
+		}else if(Head->nextnd->eventinterval<1){
+			Head->nextnd->eventinterval=1;
+		}
+
+		//Reset timer
+		if(EXECBclock<(Head->nextnd->eventinterval*overheadcount)){
+			Callbackclock=EXECBclock;
+		}else{
+			Callbackclock=Head->nextnd->eventinterval*overheadcount;
+		}
+	}else{
+		Callbackclock--;
+	}
+}
+
+void DIFCB(){
+	if(Callbackclock==0){
+		double MaxRate=0;
+		double MinPeriod=-1;
+		for(Packet *pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
+			//找ready好的最大rate
+			
+			if(pkt->readyflag){
+				if(pkt->rate>MaxRate){
+					MaxRate=pkt->rate;
+				}
+			}
+
+			//找Minimum period
+			if(pkt->period<MinPeriod || MinPeriod==-1){
+				MinPeriod=pkt->period;
+			}
+		}
+
+		Head->nextnd->eventinterval=(payload*Maxbuffersize)/MaxRate;
+		if(Head->nextnd->eventinterval<1){
+			Head->nextnd->eventinterval=1;
+		}
+		
+		//Reset timer
+		Callbackclock=Head->nextnd->eventinterval*overheadcount;	//至少需要六次後才能做更改
+	}else{
+		Callbackclock--;
+	}
+}
+
+void Finalcheck(){
+	for(Packet* pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
+		if(pkt->deadline<=Timeslot){
+			pkt->latency=pkt->latency+(Timeslot-pkt->deadline);
 		}
 	}
 }

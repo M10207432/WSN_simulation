@@ -7,7 +7,10 @@ extern double payload;				//payload 為 20bytes
 extern int Maxbuffersize;			//Maxbuffersize 為 6個packets
 extern int Pktsize;					//計算IntervalPower的pkt num
 extern int TDMASlot;
+extern int EXECBclock;			//做DIF與Lazy 計時器
+extern int Callbackclock;			//做DIF與Lazy 計時器
 extern TDMATable *NotifyTable;
+extern int overheadcount;
 
 void FlowEDF();
 void PacketQueue();
@@ -22,6 +25,12 @@ void BLE_EDF(Node *);
 void FrameEDFSchedule();
 void TDMASchedule();
 void FrameEDFSchedule_RD();
+void SingleNodeSchedule(int);
 
-void Schedule(int);
+void LazyOnWrite();
+void LazyIntervalCB();
+void DIFCB();
+
+void Schedule(int,int);
 void CheckPkt();
+void Finalcheck();

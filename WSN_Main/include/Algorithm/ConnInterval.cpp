@@ -11,6 +11,7 @@
 #include "../Struct/WSNStruct.h"
 #include "ConnInterval.h"
 #include "../Schedule/FlowSchedule.h"
+#include "../Struct/WSNEnergy.h"
 
 #undef  _ShowLog
 
@@ -24,8 +25,7 @@ EventInterval::EventInterval(){
 		Connection interval 計算方式
 ==============================================*/
 void EventInterval::Algorithm(int Rateproposal){
-	switch (Rateproposal)
-	{
+	switch (Rateproposal){
 	case 0:
 		Event();
 		break;
@@ -40,8 +40,8 @@ void EventInterval::Algorithm(int Rateproposal){
 	}
 
 	for(Packet *pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
-		packet->exeload=packet->load;
-		packet->exehop=packet->hop;
+		pkt->exeload=pkt->load;
+		pkt->exehop=pkt->hop;
 	}
 	
 }
@@ -51,13 +51,15 @@ void EventInterval::Algorithm(int Rateproposal){
 		Connection interval 結合TDMA修正方式
 ==============================================*/
 void EventInterval::Interval_TDMA_Algorithm(int proposal){
-	switch (proposal)
-	{
+	switch (proposal){
 	case 0:
 		EIMA();
 		break;
 	case 1:
 		IntervalDivide();
+		break;
+	case 2:
+		EIMA_2();
 		break;
 	default:
 		break;
@@ -140,11 +142,12 @@ void EventInterval::MEI(Node * MEINode){
 
 			//計算Connection interval
 			PacketSize=floor(Tslot/Tc)*double(Maxbuffersize);
+			
 			while(Totalsize > PacketSize){
 				Tc--;
 				PacketSize=floor(Tslot/Tc)*double(Maxbuffersize);
 			}
-
+			
 			//更新Time slot
 			if(TSBpkt!=NULL){
 				Tslot=TSBpkt->period;
@@ -153,7 +156,7 @@ void EventInterval::MEI(Node * MEINode){
 			}
 		}	
 
-		TSBnode->eventinterval=Tc-Maxbuffersize;
+		TSBnode->eventinterval=Tc;
 		TSBnode=TSBnode->nextnd;
 
 		if(MEINode!=NULL){
@@ -214,16 +217,19 @@ void EventInterval::IntervalReassign(){
 	找各個區間(interval)
 	<arrival -> period> 
 step1:找各區間 完整的packet
-step2:各區間的(packet->load加總) 除以 (interval)
+step2:各區間的(packet->load加總) 除以 (interval) <interval會算區間內最大arrival與最大deadline且要排除以assign過的packet區間>
 step3:計算各區間 rate 
 step4:找出最大rate , 其在區間的packet assign 此rate
 (找區間時要將有rate的區間時間拿掉)
+
+分配好每一packet的rate
 ===========================*/
 void EventInterval::DIF(){
 	PacketQueue();
+
 	DIFMinperiod=ReadyQ->readynextpkt->period;
 	Packet * DIFpacket;
-	map<double,map<double,DIFtable>> Table;	//二維map 內容格式為DIFtable
+	map<double,map<double,DIFtable>> Table;	//二維map 內容格式為DIFtable map[arrival][deadline]
 	double maxarrvial,maxdeadline;			//找最大Density中 的區間
 	double Maxdesity=0;						//找區間中 最大Density
 	bool Doneflag=false;					//全部assign完rate
@@ -259,17 +265,18 @@ void EventInterval::DIF(){
 				while(DIFpacket!=NULL){
 					//確定arrival 比 deadline小
 					if(a->first < p->first){
-						if(a->first <= DIFpacket->arrival && DIFpacket->deadline <= p->first && DIFpacket->rate==0){
+						if(a->first <= DIFpacket->arrival && DIFpacket->deadline <= p->first && DIFpacket->rate==0){ //尚未assigh rate且介於區間內
 							Packet* tmpDIFpacket;
 							double start=a->first;
 							double end=p->first;
 							
 							//放入區間、區間內load總值 以及 此區間Density
-							Table[a->first][p->first].length=p->first - a->first;
+							Table[a->first][p->first].length=p->first - a->first;	//length <deadline-arrival>
 							while(start!=end){
 								
 								tmpDIFpacket=Head->nextnd->pkt;
 								while(tmpDIFpacket!=NULL){
+									//排除在此區間內assign過rate的packet
 									if(tmpDIFpacket->rate!=0){
 										if(start>=tmpDIFpacket->arrival && (start+1)<=tmpDIFpacket->deadline){
 											Table[a->first][p->first].length--;
@@ -282,7 +289,7 @@ void EventInterval::DIF(){
 								start++;
 							}
 
-							Table[a->first][p->first].load=Table[a->first][p->first].load+DIFpacket->load;
+							Table[a->first][p->first].load=Table[a->first][p->first].load+DIFpacket->load*((p->first-a->first)/DIFpacket->period);
 							Table[a->first][p->first].density=Table[a->first][p->first].load/Table[a->first][p->first].length;
 							
 							//找出最大rate,並紀錄區間
@@ -395,7 +402,10 @@ void EventInterval::EIMA(){
 			Ftbl->arrival=0;
 			Ftbl->Period=tbl->n1->eventinterval;
 			Ftbl->Deadline=tbl->n1->eventinterval;
-			Ftbl->Size=Ftbl->Period/nodelevel1;
+			
+			//Ftbl->Size=Ftbl->Period/nodelevel1;
+			Ftbl->Size=floor(Ftbl->Period/nodelevel1);
+
 			Ftbl->Utilization=1/nodelevel1;
 			
 			Ftbl->ConnNode= tbl->n1;			//指向此Conn Node
@@ -570,4 +580,80 @@ void EventInterval::ConnectionPriority(){
 		}
 		assignnode=NULL;
 	}
+}
+
+void EventInterval::EIMA_2(){
+	bool EIMAEDF_flag=true;	//測試EIMA EDF 上對於inteval上的調整
+
+	double TDMASize=1;	//TDMASIZE
+	double Mininterval=Hyperperiod;	//最小的interval
+	double tmpinterval=Hyperperiod;
+	int devicenum=0;	//device 數量
+	int MaxAdvinter=0;	//對應廣播群中最大的廣播間距
+	short int frameid=1;
+
+	double res_total_u=0;
+	for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd){
+		res_total_u=res_total_u+1/(BatteryCapacity/(((I_notify*Time_notify)+(I_sleep*(n->eventinterval*unit-Time_notify)))/(n->eventinterval*unit)));
+	}
+	//-------------------------------Assign給FrameTbl,只有Connection node為3個用
+	FrameTbl=new FrameTable;
+	FrameTable* Ftbl=FrameTbl;
+	
+	for(TDMATable* tbl=TDMA_Tbl; tbl!=NULL; tbl=tbl->next_tbl){
+		if(tbl->slot==frameid && tbl->n1->SendNode==Head){
+			Ftbl->id=frameid++;
+			Ftbl->Currentflag=false;
+			Ftbl->arrival=0;
+			Ftbl->Period=tbl->n1->eventinterval;
+			Ftbl->Deadline=tbl->n1->eventinterval;
+			/*---------------------------------------
+			---------------------------------------*/
+			
+			Ftbl->Size=(((1/(BatteryCapacity/(((I_notify*Time_notify)+(I_sleep*(tbl->n1->eventinterval*unit-Time_notify)))/(tbl->n1->eventinterval*unit))))/res_total_u))
+						* tbl->n1->eventinterval;
+			Ftbl->Size=Ftbl->Size-1;
+			/*---------------------------------------
+			---------------------------------------*/
+			Ftbl->Utilization=1/nodelevel1;
+			Ftbl->ConnNode= tbl->n1;			//指向此Conn Node
+			tbl->n1->eventinterval=Ftbl->Size;	//更新node上的connection interval
+
+			Ftbl->next_tbl=new FrameTable;
+			Ftbl->next_tbl->pre_tbl=Ftbl;
+			Ftbl=Ftbl->next_tbl;
+		}
+	}
+	Ftbl->pre_tbl->next_tbl=NULL;
+	//-------------------------------------Assign 給 AdvNode使用
+	/*
+	for(FrameTable* Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
+		for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd)	{
+			if(n->SendNode!=Head){
+				
+			}
+		}
+	}
+	*/
+	if(--frameid>3){
+		printf("The Frame size is larger than three, the FrameTable is error\n");
+		system("PAUSE");
+	}
+	
+	
+	//---------------------------------Print 出資訊
+#ifdef _Showlog
+	for(Node* node=Head->nextnd; node!=NULL; node=node->nextnd){
+		cout<<	"Node"<<node->id<<"=> "<<
+				"Interval="<<node->eventinterval<<", "<<
+				"Slot="<<node->color<<", "<<
+				"Scan Duaration="<<node->ScanDuration<<", "<<
+				"SendNode="<<node->SendNode->id<<endl;
+	}
+	for(FrameTable* Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
+		cout<<"Frame"<<Ftbl->id<<" =>"<<
+			" size="<< Ftbl->Size<<","<<
+			" period="<<Ftbl->Period<<endl;
+	}
+#endif
 }
