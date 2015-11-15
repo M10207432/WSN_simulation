@@ -19,43 +19,64 @@ struct Node{
 	double radus;
 	short int hop;		//range 1~3
 
+	double period;	// At least period
+	double rate;		// bytes/s
+
 	struct Packet* pkt;
 	struct Node* nextnd;
 	struct Node* prend;
 };
 struct Packet{
 	int id;
-	int load;
+
+	double load;
 	double period;
 	double utilization;
 	double time;
 
 	short int hop;		//range 1~3
-	int destination;	//Nest node
 
+	struct Packet* set_nextpkt;
 	struct Packet* nextpkt;
 	struct Packet* prepkt;
 };
+
+/*=================================
+		Function
+==================================*/
+void NodeStruct();	//建立node的節點結構與packet結構
+
 void create();
+void create_varied(double);
+
+void NodeLocation();	//分配節點位置
 
 /*=================================
 		Global value
 ==================================*/
-const short int Max_X_Axis = 100;	//最大X軸範圍
-const short int Max_Y_Axis = 100;	//最大Y軸範圍
+double period[]={200,500,1000}; //每一node的period (ms) (不可小於200ms)
+double periodrange=150;			//period  rand時的差距
 const int Level1_Nodenum = 3;		//第一層Node數量<ConnNode>
 const int Level2_Nodenum = 0;		//第二層Node數量<AdvNode>
-const int pktnum=5;				//每個node上的封包數
+const int pktnum=4;				//每個node上的封包數
+const short int Set=100;			//每一利用的Set數
+double Initrate=80;					//開始GEN的rate
+double inv_r=80;							//rate差距
+double Maxrate=1000;				//最終 rate
+string GENfile="..\\GENresult\\input_varied\\";//放到前一目錄下的GENresult目錄，產生txt檔
+char Resultfile[]="..\\GENresult\\WSNGEN.txt";//放到前一目錄下的GENresult目錄，產生txt檔
+
+const short int Max_X_Axis = 100;	//最大X軸範圍
+const short int Max_Y_Axis = 100;	//最大Y軸範圍
+/*=================================
+					Ex setting
+==================================*/
 const double leastperiod=80;	//period最小值
-const double largestperiod=1000;//period最大值
+const double largestperiod=5000;//period最大值
 const double Hyperperiod=10000;	
 const float MIN_Uti=1.0;		//GEN 利用率的起點
 const float MAX_Uti=5.0;		//GEN 利用率的終點
 const float U_interval=1;		//利用率間距
-const short int Set=100;			//每一利用的Set數
-string GENfile="..\\GENresult\\";//放到前一目錄下的GENresult目錄，產生txt檔
-char Resultfile[]="..\\GENresult\\WSNGEN.txt";//放到前一目錄下的GENresult目錄，產生txt檔
-
 int nodenum=Level1_Nodenum;// without Level2_Nodenum
 float Total_Uti=1.0;
 const double Max_pktuti=0.9;
@@ -69,12 +90,12 @@ Packet* packet=new Packet;
 int main(void){
 	
 	srand(time(NULL));			//隨機種子
-	
-	for(float U=MIN_Uti;U<=MAX_Uti;U=U+U_interval){
-		Total_Uti=U;
+
+	for(double rate=Initrate; rate<=Maxrate; rate+=inv_r){
+		Total_Uti=rate;
 
 		//放入GEN的檔名
-		string filename="U";
+		string filename="Rate";
 		filename.append(to_string(Total_Uti));
 		filename.append("_Set");
 		filename.append(to_string(Set));
@@ -96,13 +117,18 @@ int main(void){
 		/*==================================================
 						GEN U 的 Set數
 		==================================================*/
+		
 		for(int setcount=0;setcount<Set;setcount++){
 
 			/*==================================================
 							Create Node & Packet
 			==================================================*/
-			create();
+			NodeStruct();
+			
+			//create();
+			create_varied(rate);
 
+			NodeLocation();
 			/*==================================================
 							寫入資訊 TXT
 			==================================================*/
@@ -129,7 +155,7 @@ int main(void){
 					cout<<tmppkt->load<<endl;
 					cout<<tmppkt->period<<endl;
 					tmpu=tmpu+tmppkt->utilization;
-					tmp_totaluti=tmp_totaluti+(tmppkt->time/tmppkt->period);
+					tmp_totaluti=tmp_totaluti+(tmppkt->load/tmppkt->period);
 					
 					tmppkt=tmppkt->nextpkt;
 				}
@@ -138,8 +164,8 @@ int main(void){
 				}
 			}
 
-			cout<<"Totaluti:"<<tmp_totaluti<<endl;
-			fp<<"Totaluti:"<<tmp_totaluti<<endl;
+			cout<<"Rate:"<<(tmp_totaluti/nodenum)*1000<<endl;
+			fp<<"Rate:"<<(tmp_totaluti/nodenum)*1000<<endl;
 			cout<<"=========="<<setcount<<endl;
 			fp<<"=========="<<endl;
 			fp<<"=========="<<setcount<<endl;
@@ -155,53 +181,6 @@ int main(void){
 
 void create(){
 	bool Done_flag=false;					//GEN結束
-	delete HEAD;delete node;delete packet;
-	HEAD=new Node();
-	node=new Node();
-	packet=new Packet();
-
-	/*==================================================
-					建立Link list
-					Node & Packet
-				分配ConnNode的廣播封包
-	==================================================*/
-	/*-------------------------
-		Gen node(Linklist)
-	-------------------------*/
-	
-	HEAD->nextnd=node;
-	node->prend=HEAD;
-	for(int n=0;n<nodenum;n++){
-		/*-------------------------
-			Gen packet(Linklist)
-		-------------------------*/
-		packet=new Packet;
-		node->pkt=packet;
-		packet->prepkt=NULL;
-		for (int p=0;p<pktnum;p++){
-
-			Packet* nextpacket=new Packet;
-			Packet* prepacket=packet;
-			packet->nextpkt=nextpacket;
-			packet=nextpacket;
-			packet->prepkt=prepacket;
-			
-		}
-
-		packet=packet->prepkt;
-		packet->nextpkt=NULL;
-
-		//--------------------------Packet Done
-
-		Node* nextnode=new Node;
-		Node* prenode=node;
-		node->nextnd=nextnode;
-		node=nextnode;
-		node->prend=prenode;
-	}
-	node=node->prend;
-	node->nextnd=NULL;
-	//-----------------------------Node Done
 
 	while(Done_flag!=true){
 		/*==================================================
@@ -389,44 +368,98 @@ void create(){
 		//node count 減一
 		countLevel2--;
 	}
-	/*
-	//===================================================Check 是否符合利用率,不合則修改AdvNode的packet
-	node=HEAD->nextnd;
-	double tmp_u=0;
-	while(node!=NULL){
-		packet=node->pkt;
-		while(packet!=NULL){
-			tmp_u=tmp_u+packet->utilization;
-			packet=packet->nextpkt;
-		}
-		node=node->nextnd;
-	}
+	
+	
+}
 
-	node=HEAD->nextnd;
-	if(tmp_u<Total_Uti){
-		while(node!=NULL){
-			//修改第二層AdvNode
-			if(node->hop==2){
-				tmp_u=tmp_u-node->pkt->utilization;//先減掉原本U
+void create_varied(double rate){
 
-				double tmp_period=node->pkt->period;
-				tmp_period--;
-				while(int(Hyperperiod) % int(tmp_period)!=0){
-					if(tmp_period>leastperiod)
-						tmp_period--;
-				}
+	//==========================================================setting 
+	int i=0;
+	for(Node* n=HEAD->nextnd; n!=NULL; n=n->nextnd){
+		n->period=period[i];
+		n->rate=rate/(1000/period[i]);
+		i++;
+		//=========================================================splite to pkt
+		for(Packet* pkt=n->pkt; pkt!=NULL; pkt=pkt->nextpkt){
+			pkt->load=ceil(n->rate/pktnum);
 				
-				node->pkt->period=tmp_period;
-				node->pkt->utilization=node->pkt->time/node->pkt->period;
-				tmp_u=tmp_u+node->pkt->utilization;
-			}
-			if(tmp_u>Total_Uti)
-				break;
+			double p=0;
+			do{
+				p=((double(rand()%int(pkt->load))+1)/pkt->load)*n->period;//0~avg pkt->load ===========rand
+			}while((n->period-periodrange)>=p);
 
-			node=node->nextnd;
+			//save data
+			pkt->load=ceil(pkt->load*(p/n->period));
+			pkt->period=p;
+			pkt->utilization=pkt->load/pkt->period;
 		}
 	}
-	*/
+}
+
+void NodeStruct(){
+	delete HEAD;delete node;delete packet;
+	HEAD=new Node();
+	node=new Node();
+	packet=new Packet();
+
+	/*==================================================
+					建立Link list
+					Node & Packet
+				分配ConnNode的廣播封包
+	==================================================*/
+	/*-------------------------
+		Gen node(Linklist)
+	-------------------------*/
+	
+	HEAD->nextnd=node;
+	node->prend=HEAD;
+	for(int n=0;n<nodenum;n++){
+		/*-------------------------
+			Gen packet(Linklist)
+		-------------------------*/
+		packet=new Packet;
+		node->pkt=packet;
+		packet->prepkt=NULL;
+		for (int p=0;p<pktnum;p++){
+			
+			Packet* nextpacket=new Packet;
+			Packet* prepacket=packet;
+			packet->nextpkt=nextpacket;
+			packet->set_nextpkt=nextpacket;
+			packet=nextpacket;
+			packet->prepkt=prepacket;
+			
+		}
+
+		packet=packet->prepkt;
+		packet->nextpkt=NULL;
+		packet->set_nextpkt=NULL;
+		//--------------------------Packet Done
+
+		Node* nextnode=new Node;
+		Node* prenode=node;
+		node->nextnd=nextnode;
+		node=nextnode;
+		node->prend=prenode;
+	}
+	node=node->prend;
+	node->nextnd=NULL;
+	//-----------------------------Node Done
+
+	Packet* tmppkt=NULL;
+	for(Node* node=HEAD->nextnd; node!=NULL; node=node->nextnd){
+		for(Packet* pkt=node->pkt; pkt!=NULL; pkt=pkt->nextpkt){
+			tmppkt=pkt;
+		}
+		if(node->nextnd!=NULL){
+			tmppkt->set_nextpkt=node->nextnd->pkt;
+		}
+	}
+
+}
+
+void NodeLocation(){
 	/*==================================================
 					分配各節點位置
 	==================================================*/
