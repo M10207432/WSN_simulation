@@ -8,6 +8,8 @@
 #include <math.h>
 #include <map> 
 #include <memory>
+#include <conio.h>
+//#include <windows.h>
 
 #include "include/Struct/WSNFile.h"
 #include "include/Struct/WSNStruct.h"
@@ -21,27 +23,31 @@ using namespace std;
 /*=================================
 		Experiment Setting
 ==================================*/
-const float MIN_Uti=1.0;
-const float MAX_Uti=5.0;
+const float inv_r=80;
+const float MIN_Rate=80;
+const float MAX_Rate=320;
 const short int Set=100;
 
-bool sche_flag=true;					//是否要測試schedulability
-short int Rateproposal=1;				//AssignRate()中的方法編號 0=>Event, 1=>MEI, 2=>DIF 
+bool sche_flag=false;					//是否要測試schedulability
+short int Rateproposal=1;				//AssignRate()中的方法編號 0=>Event, 1=>MEI, 2=>DIF .3=>Lazy <2,3屬於單一node上的調整>
 short int TDMAproposal=0;				//TDMA的assign方法 0=>自己的方法(只有一個superslot), 1=>Node base方法 (會再接續加入superslot)
-short int TDMA_Rateproposal=0;			//TDMA和connection interval上的校正 0=>EIMA, 1=>選最小interval除TDMA size
-short int TDMAscheduleproposal=0;		//Gateway 通知node傳輸順序 0=>做EDF排程 1=>直接照TDMA表做傳輸
+short int TDMA_Rateproposal=1;			//TDMA和connection interval上的校正 0=>EIMA(各除3), 1=>選最小interval除TDMA size, 2=>照lifetime ratio
+short int TDMAscheduleproposal=1;		//Gateway 通知node傳輸順序 0=>做EDF排程 1=>直接照TDMA表做傳輸 2=>NPEDF revise version
 
+int EXECBclock=100;						//Lazy Timer
 /*=================================
 		Global value
 ==================================*/
 bool preemptionenable=true;			//設定可否preemption
 int Flowinterval=0;					//觸發進入flow的conneciton interval
-int Pktsize=0;							//計算IntervalPower的pkt num
+int Pktsize=0;						//計算IntervalPower的pkt num
 double DIFMinperiod=0;
 double Meetcount=0;
 double AverageE=0;
 int TDMASlot=1;
+int overheadcount=6;				//動態改變interval時需要等待6個interval才能變動
 
+int Callbackclock;
 Edge *HeadEdge=new Edge;
 Edge *MainEdge=new Edge;
 Edge *ConflictEdge=new Edge;
@@ -84,7 +90,7 @@ bool Meetflag=true;					//看是否meet deadline
 double Vcc=3.3;			//BLE 驅動電壓
 
 double I_sleep=0.000001;	//Sleep 電流 1uA
-double Time_sleep=0.01;		//Sleep 電流 10ms
+double Time_sleep=0.01;		//Sleep 時間 10ms (uint time)
 double I_notify=0.0082463;	//Notify 電流 8.2463mA
 double Time_notify=0.002775;	//Notify 時間 2.775ms
 double I_Tran=0.0142744;	//Transmission 電流 14.2744mA
@@ -105,7 +111,7 @@ double parmb=24.4058498;
 EventInterval Interval_obj;
 TDMA TDMA_obj;
 
-int main(){
+int main(int argc, char* argv[]){
 	/*
 	cout<<"Type single node interval(0->Event, 1->MEI):";
 	cin>>Rateproposal;
@@ -116,13 +122,14 @@ int main(){
 	cout<<"Type TDMA schedule (0->EDF, 1->TDMA table):";
 	cin>>TDMAscheduleproposal;
 	*/
-	for(float U=MIN_Uti; U<=MAX_Uti; U++){
+	for(float U=MIN_Rate; U<=MAX_Rate; U+=inv_r){
+		SetHead->lifetime=0;
 		delete SetNode;SetNode=NULL;
 		Meetcount=0;
 		AverageE=0;
 		totalevent=0;
 
-		CreateFile(U,Set);//開啟WSNGEN 並且建立輸出檔案 (WSNFile.cpp)
+		CreateFile(U,Set,argv[0]);//開啟WSNGEN 並且建立輸出檔案 (WSNFile.cpp)
 		
 		/*===================================================
 							在同一利用率下
@@ -177,14 +184,16 @@ int main(){
 			Head->RecvNode=NULL;		//Head 接收節點要設定為NULL
 			Head->FrameSize=0;
 			TDMA_Tbl->currslot=true;	//一開始第一個要為true
+			Callbackclock=0;
 
-			while(Timeslot<Hyperperiod){
+			while(Timeslot<=Hyperperiod){
 				PacketQueue();
-				Schedule(TDMAscheduleproposal);
+				Schedule(TDMAscheduleproposal,Rateproposal);
 				
 				Timeslot++;
 			}
-			
+			Finalcheck();
+
 			/*==========================
 					END
 			==========================*/

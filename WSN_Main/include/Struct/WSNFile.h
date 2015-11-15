@@ -8,7 +8,7 @@ extern string filename;
 extern double Meetcount;
 extern double AverageE;
 
-void CreateFile(float ,int);
+void CreateFile(float ,int,char *);
 void SaveFile(short int);
 void SaveSet(int );
 void CloseFinal();

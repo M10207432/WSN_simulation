@@ -33,7 +33,14 @@ string ResultPath="..\\WSNresult\\Debug\\";
 		將GEN的資料取入 且
 		建立輸出資料
 ===========================*/
-void CreateFile(float U,int Set){
+void CreateFile(float U, int Set, char* output_path){
+
+	//設定輸出檔案路徑
+	char SchedulePath[sizeof(output_path)];
+	string S=SchedulePath;
+	cout<<"Output:"<<output_path<<endl;
+	strcpy(SchedulePath,output_path);
+
 	//放入GEN的檔名
 	filename="Rate";filename.append(to_string(U));filename.append("_Set");filename.append(to_string(Set));filename.append(".txt");
 
