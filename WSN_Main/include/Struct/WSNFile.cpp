@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <sstream>
 
 #include "WSNFile.h"
 #include "WSNStruct.h"
@@ -14,7 +15,9 @@
 using namespace std;
 static double miss_ration=0;
 static double total_latency=0;
-
+static string Single_invterval;
+static string Star_invterval;
+static string Scheduler;
 /*===========================
 		GEN & Output 
 		File Path
@@ -36,20 +39,12 @@ string ResultPath="..\\WSNresult\\Debug\\";
 ===========================*/
 void CreateFile(float U, int Set, char* output_path){
 
-	//設定輸出檔案路徑
-	char SchedulePath[sizeof(output_path)];
-	string S=SchedulePath;
-	cout<<"Output:"<<output_path<<endl;
-	strcpy(SchedulePath,output_path);
-
-	//放入GEN的檔名
-	filename="Rate";filename.append(to_string(U));filename.append("_Set");filename.append(to_string(Set));filename.append(".txt");
-
-	//放入GEN的 路徑+檔名
-	string GENBuffer=GENPath;
-	GENBuffer.append(filename);
+	PathSetting(output_path);
 
 	//=========================開啟GENFile
+	filename="Rate";filename.append(to_string(U));filename.append("_Set");filename.append(to_string(Set));filename.append(".txt");
+	string GENBuffer=GENPath;
+	GENBuffer.append(filename);
 	GENfile.open(GENBuffer, ios::in);	//開啟檔案.寫入狀態
 	if(!GENfile){//如果開啟檔案失敗，fp為0；成功，fp為非0
 		cout<<"Fail to open file: "<<GENBuffer<<endl;
@@ -300,3 +295,83 @@ void SaveSet(int Set){
 void CloseFinal(){
 	Finalfile.close();
 }
+
+/*========================================
+		Setting Resource file
+		
+		Setting GENFILE
+		Setting 
+========================================*/
+void PathSetting(string outputpath){
+	
+	//============================================Find last {\\}
+	int i=0, len=outputpath.length();
+	for(i=len; outputpath[i]!='\\' ; i--){}
+	SchedulePath=outputpath.assign(outputpath,0,i);
+	SchedulePath.append("\\");
+	FinalPath=SchedulePath;
+	ResultPath=SchedulePath;
+
+	cout<<"Output file: "<<SchedulePath<<endl;
+
+	//============================================get setting file
+	fstream Settingfile;
+	string SettingBuffer=SchedulePath;
+	SettingBuffer.append("\\Setting.txt");
+	Settingfile.open(SettingBuffer, ios::in);	//開啟檔案.寫入狀態
+	if(!Settingfile){//如果開啟檔案失敗，fp為0；成功，fp為非0
+		cout<<"Fail to open file: "<<SettingBuffer<<endl;
+		system("PAUSE");
+	}
+
+	string str;
+	Settingfile>>str; stream.clear();
+	cout<<"Resource file: "<<str<<endl;
+	GENPath=str.append("\\");
+
+	Settingfile>>str; stream.clear();
+	cout<<"Single node proposal: "<<str<<endl;
+	Single_invterval=str;
+
+	Settingfile>>str; stream.clear();
+	cout<<"Star proposal: "<<str<<endl;
+	Star_invterval=str;
+
+	Settingfile>>str; stream.clear();
+	cout<<"Schedule : "<<str<<endl;
+	Scheduler=str;
+
+	Settingfile.close();
+}
+
+void ExperimentSetting(short int*S_inv, short int*Star_inv, short int*Sche){
+	//==========================Single Node setting
+	if(Single_invterval.compare("MEI")==0){
+		*S_inv=1;
+	}else if(Single_invterval.compare("DIF")==0){
+		*S_inv=2;
+	}else if(Single_invterval.compare("Lazy")==0){
+		*S_inv=3;
+	}
+
+	//==========================Star interval setting
+	if(Star_invterval.compare("EIMA")==0){
+		*Star_inv=2;
+	}else if(Star_invterval.compare("LDC")==0){
+		*Star_inv=0;
+	}else if(Star_invterval.compare("Static")==0){
+		*Star_inv=1;
+	}
+
+	//==========================Scheduler setting
+	if(Scheduler.compare("NPEDFRD")==0){
+		*Sche=2;
+	}else if(Scheduler.compare("NPEDF")==0){
+		*Sche=0;
+	}else if(Scheduler.compare("Polling")==0){
+		*Sche=3;
+	}else if (Scheduler.compare("Table")==0){
+		*Sche=1;
+	}
+}
+

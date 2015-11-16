@@ -12,3 +12,6 @@ void CreateFile(float ,int,char *);
 void SaveFile(short int);
 void SaveSet(int );
 void CloseFinal();
+
+void PathSetting(string);
+void ExperimentSetting(short int*, short int*, short int*);
