@@ -39,8 +39,9 @@ string ResultPath="..\\WSNresult\\Debug\\";
 ===========================*/
 void CreateFile(float U, int Set, char* output_path){
 
-	PathSetting(output_path);
-
+	if(readsetting==1){
+		PathSetting(output_path);
+	}
 	//=========================開啟GENFile
 	filename="Rate";filename.append(to_string(U));filename.append("_Set");filename.append(to_string(Set));filename.append(".txt");
 	string GENBuffer=GENPath;
@@ -48,7 +49,6 @@ void CreateFile(float U, int Set, char* output_path){
 	GENfile.open(GENBuffer, ios::in);	//開啟檔案.寫入狀態
 	if(!GENfile){//如果開啟檔案失敗，fp為0；成功，fp為非0
 		cout<<"Fail to open file: "<<GENBuffer<<endl;
-		
 		system("PAUSE");
 	}
 
