@@ -8,6 +8,8 @@
 #include <math.h>
 #include <map> 
 #include <memory>
+#include <conio.h>
+//#include <windows.h>
 
 #include "include/Struct/WSNFile.h"
 #include "include/Struct/WSNStruct.h"
@@ -21,8 +23,9 @@ using namespace std;
 /*=================================
 		Experiment Setting
 ==================================*/
-const float MIN_Uti=1.0;
-const float MAX_Uti=4.0;
+const float inv_r=80;
+const float MIN_Rate=80;
+const float MAX_Rate=320;
 const short int Set=100;
 
 bool sche_flag=false;					//是否要測試schedulability
@@ -108,7 +111,7 @@ double parmb=24.4058498;
 EventInterval Interval_obj;
 TDMA TDMA_obj;
 
-int main(){
+int main(int argc, char* argv[]){
 	/*
 	cout<<"Type single node interval(0->Event, 1->MEI):";
 	cin>>Rateproposal;
@@ -119,14 +122,16 @@ int main(){
 	cout<<"Type TDMA schedule (0->EDF, 1->TDMA table):";
 	cin>>TDMAscheduleproposal;
 	*/
-	for(float U=MIN_Uti; U<=MAX_Uti; U++){
+
+	for(float U=MIN_Rate; U<=MAX_Rate; U+=inv_r){
+
 		SetHead->lifetime=0;
 		delete SetNode;SetNode=NULL;
 		Meetcount=0;
 		AverageE=0;
 		totalevent=0;
 
-		CreateFile(U,Set);//開啟WSNGEN 並且建立輸出檔案 (WSNFile.cpp)
+		CreateFile(U,Set,argv[0]);//開啟WSNGEN 並且建立輸出檔案 (WSNFile.cpp)
 		
 		/*===================================================
 							在同一利用率下
@@ -183,13 +188,14 @@ int main(){
 			TDMA_Tbl->currslot=true;	//一開始第一個要為true
 			Callbackclock=0;
 
-			while(Timeslot<Hyperperiod){
+			while(Timeslot<=Hyperperiod){
 				PacketQueue();
 				Schedule(TDMAscheduleproposal,Rateproposal);
 				
 				Timeslot++;
 			}
-			
+			Finalcheck();
+
 			/*==========================
 					END
 			==========================*/

@@ -652,6 +652,8 @@ void BLE_EDF(Node *node){
 					cout<<"(PKT"<<packet->id<<" Miss deadline"<<" Deadline "<<packet->deadline<<")";
 #endif
 					Schdulefile<<"(PKT"<<packet->id<<" Miss deadline"<<" Deadline "<<packet->deadline<<")";
+					
+					packet->latency=packet->latency+(Timeslot-packet->deadline);//Record latency
 
 					Meetflag=false;
 					//system("PAUSE");
@@ -661,7 +663,9 @@ void BLE_EDF(Node *node){
 				packet->exeload=packet->load;
 				packet->arrival=packet->deadline;
 				packet->deadline=packet->deadline+packet->period;
-				packet->CMP_D=packet->CMP_D+packet->period;
+
+				//packet->CMP_D=packet->CMP_D+packet->period;
+
 				packet->exehop=packet->hop;	
 
 				//Buffer©¹«e²¾°Ê
@@ -1310,3 +1314,12 @@ void DIFCB(){
 		Callbackclock--;
 	}
 }
+
+void Finalcheck(){
+	for(Packet* pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
+		if(pkt->deadline<=Timeslot){
+			pkt->latency=pkt->latency+(Timeslot-pkt->deadline);
+		}
+	}
+}
+

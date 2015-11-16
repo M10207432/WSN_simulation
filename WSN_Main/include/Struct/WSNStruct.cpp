@@ -165,6 +165,7 @@ void StructGEN(){
 			packet->State="Idle";
 			packet->CMP_D=packet->deadline;
 			packet->Miss_count=0;
+			packet->latency=0;
 			
 			//¤U¤@­Ópacket
 			packet=packet->nextpkt;

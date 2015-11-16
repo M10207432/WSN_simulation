@@ -13,6 +13,8 @@
 
 using namespace std;
 static double miss_ration=0;
+static double total_latency=0;
+
 /*===========================
 		GEN & Output 
 		File Path
@@ -32,9 +34,16 @@ string ResultPath="..\\WSNresult\\Debug\\";
 		將GEN的資料取入 且
 		建立輸出資料
 ===========================*/
-void CreateFile(float U,int Set){
+void CreateFile(float U, int Set, char* output_path){
+
+	//設定輸出檔案路徑
+	char SchedulePath[sizeof(output_path)];
+	string S=SchedulePath;
+	cout<<"Output:"<<output_path<<endl;
+	strcpy(SchedulePath,output_path);
+
 	//放入GEN的檔名
-	filename="U";filename.append(to_string(U));filename.append("_Set");filename.append(to_string(Set));filename.append(".txt");
+	filename="Rate";filename.append(to_string(U));filename.append("_Set");filename.append(to_string(Set));filename.append(".txt");
 
 	//放入GEN的 路徑+檔名
 	string GENBuffer=GENPath;
@@ -167,11 +176,15 @@ void SaveFile(short int setnum){
 	//--------------------------------------------計算miss ratio
 	double Recv_count=0;
 	double Miss_count=0;
+	double latency=0;
 	for(Packet* pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
 		Recv_count=Recv_count+Hyperperiod/pkt->period;
 		Miss_count=Miss_count+pkt->Miss_count;
+		latency=latency+pkt->latency;
 	}
 	Resultfile<<"Meet ratio:"<<Miss_count/Recv_count<<endl;
+	Resultfile<<"Latency:"<<latency/Miss_count<<endl;
+
 	//cout<<"Meet ratio:"<<Miss_count/Recv_count<<endl;
 
 	//--------------------------------------------是否meet
@@ -228,7 +241,8 @@ void SaveFile(short int setnum){
 	}
 	else{
 		miss_ration=miss_ration+(Miss_count/Recv_count);
-		
+		total_latency=total_latency+(latency);
+
 		Resultfile<<"Meet Deadline:MISS"<<endl;
 		#ifdef _ShowLog
 		cout<<"Meet Deadline:MISS"<<endl;
@@ -255,6 +269,9 @@ void SaveSet(int Set){
 		cout<<"Node"<<SetNode->id<<"="<<SetNode->avgenergy/Set<<endl;
 		SetNode=SetNode->nextnd;
 	}
+	cout<<"Miss ratio="<<miss_ration/(Set-Meetcount)<<endl;
+	cout<<"Latency="<<total_latency/(Set-Meetcount)<<endl;
+	cout<<"Lifetime="<<(SetHead->lifetime)/(Set)<<endl;
 	cout<<"AverageEnergy="<<AverageE/Set<<endl;
 	cout<<"=============================================="<<endl;
 
@@ -268,10 +285,12 @@ void SaveSet(int Set){
 		SetNode=SetNode->nextnd;
 	}
 	Finalfile<<"Miss ratio="<<miss_ration/(Set-Meetcount)<<endl;
+	Finalfile<<"Latency="<<total_latency/(Set-Meetcount)<<endl;
 	Finalfile<<"Lifetime="<<(SetHead->lifetime)/(Set)<<endl;
 	Finalfile<<"AverageEnergy="<<AverageE/Set<<endl;
 	Finalfile<<"=============================================="<<endl;
 	
+	total_latency=0;
 	miss_ration=0;
 	GENfile.close();
 	Schdulefile.close();
