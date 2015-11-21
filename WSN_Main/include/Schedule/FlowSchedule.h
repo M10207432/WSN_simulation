@@ -11,6 +11,8 @@ extern int EXECBclock;			//做DIF與Lazy 計時器
 extern int Callbackclock;			//做DIF與Lazy 計時器
 extern TDMATable *NotifyTable;
 extern int overheadcount;
+extern FrameTable *Cycle;
+extern short int pollingcount;
 
 void FlowEDF();
 void PacketQueue();
@@ -25,6 +27,7 @@ void BLE_EDF(Node *);
 void FrameEDFSchedule();
 void TDMASchedule();
 void FrameEDFSchedule_RD();
+void Polling();
 void SingleNodeSchedule(int);
 
 void LazyOnWrite();

@@ -27,10 +27,10 @@ const float MIN_Rate=80;
 const float MAX_Rate=960;
 const short int Set=100;
 
-short int readsetting=1;					//是否要讀取本地Setting.txt
+short int readsetting=0;					//是否要讀取本地Setting.txt
 short int Rateproposal=1;				//AssignRate()中的方法編號 0=>Event, 1=>MEI, 2=>DIF, 3=>Lazy <2,3屬於單一node上的調整>
-short int TDMA_Rateproposal=1;			//TDMA和connection interval上的校正 0=>LDC(各除3), 1=>選最小interval除TDMA size, 2=>照lifetime ratio
-short int TDMAscheduleproposal=1;		//Gateway 通知node傳輸順序 0=>做EDF排程 1=>直接照TDMA表做傳輸 2=>NPEDF revise version
+short int TDMA_Rateproposal=2;			//TDMA和connection interval上的校正 0=>LDC(各除3), 1=>選最小interval除TDMA size, 2=>照lifetime ratio
+short int TDMAscheduleproposal=3;		//Gateway 通知node傳輸順序 0=>做EDF排程 1=>直接照TDMA表做傳輸 2=>NPEDF revise version 3=>Polling
 
 bool sche_flag=false;					//是否要測試schedulability
 short int TDMAproposal=0;				//TDMA的assign方法 0=>自己的方法(只有一個superslot), 1=>Node base方法 (會再接續加入superslot)
@@ -46,6 +46,8 @@ double Meetcount=0;
 double AverageE=0;
 int TDMASlot=1;
 int overheadcount=6;				//動態改變interval時需要等待6個interval才能變動
+FrameTable* Cycle=NULL;
+short int pollingcount=1;
 
 int Callbackclock;
 Edge *HeadEdge=new Edge;
@@ -147,7 +149,8 @@ int main(int argc, char* argv[]){
 			Hyperperiod=0;
 			totalevent=0;
 			NotifyNode=NULL;
-
+			Cycle=NULL;
+			pollingcount=1;
 			/*==========================
 				建立Linklist以及
 				GEN的資料放進去

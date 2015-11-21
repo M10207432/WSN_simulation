@@ -57,14 +57,14 @@ void NodeLocation();	//分配節點位置
 ==================================*/
 double period[]={200,500,1000}; //每一node的period (ms) (不可小於200ms)
 double periodrange=150;			//period  rand時的差距
-const int Level1_Nodenum = 3;		//第一層Node數量<ConnNode>
+const int Level1_Nodenum = 1;		//第一層Node數量<ConnNode>
 const int Level2_Nodenum = 0;		//第二層Node數量<AdvNode>
 const int pktnum=4;				//每個node上的封包數
 const short int Set=100;			//每一利用的Set數
 double Initrate=80;					//開始GEN的rate
 double inv_r=80;							//rate差距
 double Maxrate=1000;				//最終 rate
-string GENfile="..\\GENresult\\input_varied\\";//放到前一目錄下的GENresult目錄，產生txt檔
+string GENfile="..\\GENresult\\input_single\\";//放到前一目錄下的GENresult目錄，產生txt檔
 char Resultfile[]="..\\GENresult\\WSNGEN.txt";//放到前一目錄下的GENresult目錄，產生txt檔
 
 const short int Max_X_Axis = 100;	//最大X軸範圍
@@ -78,7 +78,6 @@ const double Hyperperiod=10000;
 const float MIN_Uti=1.0;		//GEN 利用率的起點
 const float MAX_Uti=5.0;		//GEN 利用率的終點
 const float U_interval=1;		//利用率間距
-const short int Set=100;			//每一利用的Set數
 const bool varied_f=true;		//是否要各node的period差距較大
 int nodenum=Level1_Nodenum;// without Level2_Nodenum
 float Total_Uti=1.0;
@@ -515,79 +514,4 @@ void NodeLocation(){
 		cout<<"Node Address: "<<node->coor_x<<" "<<node->coor_y<<endl;
 		node=node->nextnd;
 	}
-}
-
-void create_varied(){
-
-	for(Packet* pkt=HEAD->nextnd->pkt; pkt!=NULL; pkt=pkt->set_nextpkt){
-		printf("Pkt%d, load=%d, period=%lf\n",pkt->id, pkt->load, pkt->period);
-	}
-
-	//selection sort
-	Node* node=HEAD;
-
-	Packet* cmppkt=node->nextnd->pkt; 
-	while(cmppkt!=NULL){
-		Packet *exchangepkt=NULL;
-		
-		for(Packet* pkt=cmppkt->set_nextpkt; pkt!=NULL; pkt=pkt->set_nextpkt){
-			if(pkt->period < cmppkt->period){
-				if(exchangepkt==NULL){
-					exchangepkt=pkt;
-				}else if(pkt->period <exchangepkt->period){
-					exchangepkt=pkt;
-				}
-			}
-		}
-
-		if(exchangepkt!=NULL){
-			exchangepkt->load=cmppkt->load^exchangepkt->load;
-			cmppkt->load=cmppkt->load^exchangepkt->load;
-			exchangepkt->load=cmppkt->load^exchangepkt->load;
-
-			double tmp=cmppkt->period;
-			cmppkt->period=exchangepkt->period;
-			exchangepkt->period=tmp;
-
-			tmp=cmppkt->time;
-			cmppkt->time=exchangepkt->time;
-			exchangepkt->time=tmp;
-
-			tmp=cmppkt->utilization;
-			cmppkt->utilization=exchangepkt->utilization;
-			exchangepkt->utilization=tmp;
-		}
-		cmppkt=cmppkt->set_nextpkt;
-	}
-
-	cout<<"==========================="<<endl;
-
-	//adjust period
-	for(Node* n=HEAD->nextnd; n!=NULL; n=n->nextnd){
-		//find small period for each node
-		double smallperiod=0;
-		for(Packet* pkt=n->pkt; pkt!=NULL; pkt=pkt->nextpkt){
-			if(smallperiod==0 || pkt->period<smallperiod){
-				smallperiod=pkt->period;
-			}
-		}
-		//
-		for(Packet* pkt=n->pkt; pkt!=NULL; pkt=pkt->nextpkt){
-			pkt->load=payload;
-			if(pkt->period>smallperiod && (pkt->period-smallperiod)>50){
-				pkt->period=smallperiod;
-				/*
-				pkt->time=(pkt->utilization * pkt->period);
-				pkt->time=(int(pkt->time)/10)*10;
-				pkt->load=(pkt->time/transmission_time)*payload;
-				*/
-				pkt->load=payload;
-			}
-		}
-	}
-	for(Packet* pkt=HEAD->nextnd->pkt; pkt!=NULL; pkt=pkt->set_nextpkt){
-
-		printf("Pkt%d, load=%d, period=%lf\n",pkt->id, pkt->load, pkt->period);
-	}
-	int y=0;
 }

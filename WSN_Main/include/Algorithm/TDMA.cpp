@@ -375,5 +375,4 @@ void TDMA::TDMA_Assignment(int method){
 
 	TDMA_Tbl=MainTable;
 
-	
 }

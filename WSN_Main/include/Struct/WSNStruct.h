@@ -134,6 +134,8 @@ struct FrameTable{
 	
 	FrameTable* next_tbl;
 	FrameTable* pre_tbl;
+
+	FrameTable* polling_next;
 };
 
 struct TDMATable{

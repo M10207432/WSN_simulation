@@ -20,7 +20,7 @@
 using namespace std;
 
 void Schedule(int propose, int intervalpropose){
-
+	
 	CheckPkt();
 	/*==========================
 			判斷是單一node
@@ -36,6 +36,10 @@ void Schedule(int propose, int intervalpropose){
 			break;
 		case 2:
 			FrameEDFSchedule_RD();
+			break;
+		case 3:
+			
+			Polling();
 			break;
 		}
 	}else{
@@ -1319,6 +1323,132 @@ void Finalcheck(){
 	for(Packet* pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
 		if(pkt->deadline<=Timeslot){
 			pkt->latency=pkt->latency+(Timeslot-pkt->deadline);
+		}
+	}
+}
+
+/*================================================
+			
+================================================*/
+void Polling(){
+	TDMATable *table=TDMA_Tbl;
+	Node *node=Head->nextnd;
+	short int notiyfyslot=0;
+	short int MaxFrameSize=0;
+	bool allframeset=false;		//確認有對其中一個frame下做currslot enable
+	bool NotifyFlag=true;		//確認傳輸只能一次(ConnSet)
+
+	/*----------------------------------------------
+		
+	----------------------------------------------*/
+	if(Head->FrameSize<=0 ){ //(Head->RecvNode目前是先擋住，但之後要對FrameSize做修改)
+		if(Cycle!=NULL){
+			Cycle=Cycle->polling_next;
+		}
+		if(Cycle==NULL){
+			short int count=pollingcount;
+			FrameTable *tmptbl=NULL;
+			for(FrameTable* tbl=FrameTbl; tbl!=NULL; tbl=tbl->next_tbl){
+				tbl->Currentflag=false;
+			}
+
+			while(count){
+				//找最小period且未被assign入Cycle
+				tmptbl=NULL;
+				for(FrameTable* tbl=FrameTbl; tbl!=NULL; tbl=tbl->next_tbl){
+					if(tbl->Currentflag==false){	//尚未assign
+						if(tmptbl==NULL){
+							tmptbl=tbl;
+						}else if(tbl->Period < tmptbl->Period){
+							tmptbl=tbl;
+						}
+					}
+				}
+
+				//放入cycle
+				tmptbl->Currentflag=true;
+				if(Cycle==NULL){
+					Cycle=tmptbl;
+					Cycle->polling_next=NULL;
+				}else{
+					FrameTable *subcycle=Cycle;
+					while(subcycle->polling_next!=NULL){
+						subcycle=subcycle->polling_next;
+					}
+					subcycle->polling_next=tmptbl;
+					subcycle->polling_next->polling_next=NULL;
+				}
+
+				count--;
+			}
+
+			//下一次polling cycle
+			pollingcount++;
+			if(pollingcount>nodelevel1){
+				pollingcount=1;
+			}
+		}
+
+		Work_tbl=Cycle;
+		Work_tbl->Currentflag=true;
+		Work_tbl->ConnNode->State="Notify";
+		Head->FrameSize=Work_tbl->Size;
+		Work_tbl->Deadline=Work_tbl->Deadline+Work_tbl->Period;
+
+		Head->FrameSize--;
+	}else{
+		Head->FrameSize--;
+	}
+
+	/*----------------------------------------------
+		ConnSet中被通知的Node做對應傳輸或SCAN
+		Notify & Scan可同時運作
+
+		node是否有event arrival		(node->EvtArrival)
+		node是否有被通知				(Head->RecvNode, call BLE_EDF(node))
+		node energy consumption		(node->State)
+	----------------------------------------------*/
+	for(Node *n=Head->nextnd; n!=NULL; n=n->nextnd){
+		
+		//-------------------State為Transmission, 只在event arrival 時才做Buffer規劃
+		if(Timeslot % int(n->eventinterval)==0){
+			NodeBufferSet(n);		//整理好n中的NodeBuffer
+			n->EvtArrival =true;	//對此node設定EvtArrival
+		}else{
+			n->EvtArrival =false;
+		}
+
+		//-------------------進行傳輸 [有被通知(node->State=="Transmission") 且 event arrival(node->EvtArrival)]
+		if(n->State!="Sleep"){
+			bool eventarrival=false;
+			
+			if(n->EvtArrival && n->State=="Notify" && (Head->RecvNode==NULL || Head->RecvNode==n)){
+				Head->RecvNode=n;	//Head->RecvNode切換
+				n->State="Transmission";
+								
+			}
+			
+			//-------------------進行傳輸 (Head->RecvNode要確認目前沒node或為當前node)
+			if(Head->RecvNode==n && NotifyFlag){
+				BLE_EDF(n);				//對n做傳輸
+
+				if(n->NodeBuffer->load==0){
+					Head->RecvNode=NULL;
+				}
+				
+				NotifyFlag=false;
+			}
+
+			//-------------------State為Scan
+			if(n->State=="Scan"){
+				//n->ScanDuration--;
+			}
+		}
+
+		//---------------------------------------Power consumption & State切換
+		Node_EnergyState(n);	//計算n的Energy
+		if(n->NodeBuffer->load==0 && n->State=="Transmission"){
+			n->State="Sleep";
 		}
 	}
 }
