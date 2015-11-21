@@ -352,6 +352,9 @@ void ExperimentSetting(short int*S_inv, short int*Star_inv, short int*Sche){
 		*S_inv=2;
 	}else if(Single_invterval.compare("Lazy")==0){
 		*S_inv=3;
+	}else{
+		printf("Error No Single interval proposal\n");
+		system("PAUSE");
 	}
 
 	//==========================Star interval setting
@@ -361,6 +364,9 @@ void ExperimentSetting(short int*S_inv, short int*Star_inv, short int*Sche){
 		*Star_inv=0;
 	}else if(Star_invterval.compare("Static")==0){
 		*Star_inv=1;
+	}else{
+		printf("Error No Star efficiency proposal\n");
+		system("PAUSE");
 	}
 
 	//==========================Scheduler setting
@@ -372,6 +378,9 @@ void ExperimentSetting(short int*S_inv, short int*Star_inv, short int*Sche){
 		*Sche=3;
 	}else if (Scheduler.compare("Table")==0){
 		*Sche=1;
+	}else{
+		printf("Error No write-request proposal\n");
+		system("PAUSE");
 	}
 }
 

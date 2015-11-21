@@ -38,7 +38,6 @@ void Schedule(int propose, int intervalpropose){
 			FrameEDFSchedule_RD();
 			break;
 		case 3:
-			
 			Polling();
 			break;
 		}
