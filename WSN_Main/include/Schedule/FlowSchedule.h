@@ -33,6 +33,7 @@ void SingleNodeSchedule(int);
 void LazyOnWrite();
 void LazyIntervalCB();
 void DIFCB();
+void SingleStatic();
 
 void Schedule(int,int);
 void CheckPkt();

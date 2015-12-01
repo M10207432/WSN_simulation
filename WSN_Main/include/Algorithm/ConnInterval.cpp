@@ -427,7 +427,7 @@ void EventInterval::EIMA(){
 		}
 	}
 	*/
-	if(--frameid>3){
+	if(--frameid>nodelevel1){
 		printf("The Frame size is larger than three, the FrameTable is error\n");
 		system("PAUSE");
 	}
@@ -494,7 +494,7 @@ void EventInterval::IntervalDivide(){
 			Ftbl->Period=tbl->n1->eventinterval;
 			Ftbl->Deadline=tbl->n1->eventinterval;
 			Ftbl->Size=tbl->n1->eventinterval;
-			Ftbl->Utilization=0.3;
+			Ftbl->Utilization=1/nodelevel1;
 
 			Ftbl->ConnNode= tbl->n1;			//指向此Conn Node
 			tbl->n1->eventinterval=Ftbl->Size;	//更新node上的connection interval
@@ -506,7 +506,7 @@ void EventInterval::IntervalDivide(){
 	}
 	Ftbl->pre_tbl->next_tbl=NULL;
 
-	if(--frameid>3){
+	if(--frameid>nodelevel1){
 		printf("The Frame size is larger than three, the FrameTable is error\n");
 		system("PAUSE");
 	}
@@ -635,7 +635,7 @@ void EventInterval::EIMA_2(){
 		}
 	}
 	*/
-	if(--frameid>3){
+	if(--frameid>nodelevel1){
 		printf("The Frame size is larger than three, the FrameTable is error\n");
 		system("PAUSE");
 	}

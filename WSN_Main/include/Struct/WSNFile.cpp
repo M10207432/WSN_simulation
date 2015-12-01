@@ -28,7 +28,7 @@ fstream Schdulefile;
 fstream Finalfile;
 fstream Resultfile;
 
-string GENPath="..\\GENresult\\input_varied\\";
+string GENPath="..\\GENresult\\input_single\\";
 string SchedulePath="..\\WSNresult\\Debug\\";
 string FinalPath="..\\WSNresult\\Debug\\";
 string ResultPath="..\\WSNresult\\Debug\\";
@@ -178,7 +178,8 @@ void SaveFile(short int setnum){
 		latency=latency+pkt->latency;
 	}
 	Resultfile<<"Meet ratio:"<<Miss_count/Recv_count<<endl;
-	Resultfile<<"Latency:"<<latency/Miss_count<<endl;
+	Resultfile<<"Latency ratio:"<<latency/Miss_count<<endl;
+	Resultfile<<"Latency time:"<<latency<<endl;
 
 	//cout<<"Meet ratio:"<<Miss_count/Recv_count<<endl;
 
@@ -236,7 +237,7 @@ void SaveFile(short int setnum){
 	}
 	else{
 		miss_ration=miss_ration+(Miss_count/Recv_count);
-		total_latency=total_latency+(latency);
+		total_latency=total_latency+(latency/Miss_count);
 
 		Resultfile<<"Meet Deadline:MISS"<<endl;
 		#ifdef _ShowLog
@@ -364,7 +365,7 @@ void ExperimentSetting(short int*S_inv, short int*Star_inv, short int*Sche){
 	}
 
 	//==========================Scheduler setting
-	if(Scheduler.compare("NPEDFRD")==0){
+	if(Scheduler.compare("EIF")==0){
 		*Sche=2;
 	}else if(Scheduler.compare("NPEDF")==0){
 		*Sche=0;

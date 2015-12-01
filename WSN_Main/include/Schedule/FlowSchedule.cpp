@@ -38,7 +38,6 @@ void Schedule(int propose, int intervalpropose){
 			FrameEDFSchedule_RD();
 			break;
 		case 3:
-			
 			Polling();
 			break;
 		}
@@ -1183,6 +1182,9 @@ void SingleNodeSchedule(int intervalpropose){
 	case 3:	//------------Lazy
 		LazyIntervalCB();
 		break;
+	case 4:
+		SingleStatic();
+		break;
 	}
 	
 
@@ -1212,8 +1214,6 @@ void SingleNodeSchedule(int intervalpropose){
 		Head->RecvNode=NULL;
 		n->State="Sleep";
 	}
-
-
 }
 
 /*=========================================
@@ -1453,3 +1453,18 @@ void Polling(){
 	}
 }
 
+void SingleStatic(){
+	//find the minimum period
+	Packet* Minpkt=NULL;
+	for(Packet* pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
+		if(Minpkt==NULL){
+			Minpkt=pkt;
+		}else{
+			if(Minpkt->period > pkt->period){
+				Minpkt=pkt;
+			}
+		}
+	}
+
+	Head->nextnd->eventinterval=Minpkt->period;
+}
