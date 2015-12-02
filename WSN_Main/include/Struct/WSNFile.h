@@ -11,7 +11,7 @@ extern short int readsetting;
 
 void CreateFile(float ,int,char *);
 void SaveFile(short int);
-void SaveSet(int );
+void SaveSet(float, int);
 void CloseFinal();
 
 void PathSetting(string);

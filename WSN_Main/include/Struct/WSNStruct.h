@@ -94,6 +94,8 @@ struct Packet{
 	short int CMP_D;		//判斷是否在此deadline前arrival，有=>往上疊加 否=>Miss_count++ 並往上疊加 (放於FlowSchedule下CheckPkt method)
 	short int Miss_count;	//Miss counting (放於FlowSchedule下CheckPkt method)
 	double latency;			//計算miss時的latency
+	double meetlatency;		//計算duration of sensor sensing arrival to tranmission
+	double meetlatency_cnt;
 
 	Node* node;
 

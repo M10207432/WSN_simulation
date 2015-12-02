@@ -166,7 +166,9 @@ void StructGEN(){
 			packet->CMP_D=packet->deadline;
 			packet->Miss_count=0;
 			packet->latency=0;
-			
+			packet->meetlatency=0;
+			packet->meetlatency_cnt=0;
+
 			//¤U¤@­Ópacket
 			packet=packet->nextpkt;
 		}

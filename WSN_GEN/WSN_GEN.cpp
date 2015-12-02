@@ -55,17 +55,17 @@ void NodeLocation();	//分配節點位置
 /*=================================
 		Global value
 ==================================*/
-//double period[]={200,500,1000}; //每一node的period (ms) (不可小於200ms)
 double *period=NULL;
-double periodrange=50;			//period  rand時的差距
-const int Level1_Nodenum = 8;		//第一層Node數量<ConnNode>
+double Hyperperiod=10000;
+double periodrange;			//period  rand時的差距
+const int Level1_Nodenum = 3;		//第一層Node數量<ConnNode>
 const int Level2_Nodenum = 0;		//第二層Node數量<AdvNode>
 const int pktnum=4;				//每個node上的封包數
 const short int Set=100;			//每一利用的Set數
 double Initrate=80;					//開始GEN的rate
 double inv_r=80;							//rate差距
 double Maxrate=1000;				//最終 rate
-string GENfile="..\\GENresult\\input_varied_node8\\";//放到前一目錄下的GENresult目錄，產生txt檔
+string GENfile="..\\GENresult\\input_varied_node3\\";//放到前一目錄下的GENresult目錄，產生txt檔
 char Resultfile[]="..\\GENresult\\WSNGEN.txt";//放到前一目錄下的GENresult目錄，產生txt檔
 
 const short int Max_X_Axis = 100;	//最大X軸範圍
@@ -75,7 +75,6 @@ const short int Max_Y_Axis = 100;	//最大Y軸範圍
 ==================================*/
 const double leastperiod=80;	//period最小值
 const double largestperiod=5000;//period最大值
-const double Hyperperiod=10000;	
 const float MIN_Uti=1.0;		//GEN 利用率的起點
 const float MAX_Uti=5.0;		//GEN 利用率的終點
 const float U_interval=1;		//利用率間距
@@ -398,8 +397,8 @@ void create_varied(double rate){
 	//==========================================================setting 
 	int i=0;
 	for(Node* n=HEAD->nextnd; n!=NULL; n=n->nextnd){
-		n->period=period[i];
-		n->rate=rate/(1000/period[i]);
+		n->period=ceil(period[i]);
+		n->rate=rate*(period[i]/1000);
 		i++;
 		//=========================================================splite to pkt
 		for(Packet* pkt=n->pkt; pkt!=NULL; pkt=pkt->nextpkt){
@@ -407,8 +406,9 @@ void create_varied(double rate){
 			
 			double p=0;
 			do{
-				p=((double(rand()%int(pkt->load))+1)/pkt->load)*n->period;//0~avg pkt->load ===========rand
-			}while((n->period-periodrange)>=p);
+				p=(rand()%200)+(n->period-100);
+				//p=((double(rand()%int(pkt->load))+1)/pkt->load)*n->period;//0~avg pkt->load ===========rand
+			}while((int)Hyperperiod%(int)p!=0);
 
 			//save data
 			pkt->load=ceil(pkt->load*(p/n->period));

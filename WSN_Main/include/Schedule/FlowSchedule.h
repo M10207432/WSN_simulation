@@ -26,7 +26,7 @@ void BLE_EDF(Node *);
 
 void FrameEDFSchedule();
 void TDMASchedule();
-void FrameEDFSchedule_RD();
+void EIF();
 void Polling();
 void SingleNodeSchedule(int);
 

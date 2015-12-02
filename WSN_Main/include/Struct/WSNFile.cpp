@@ -13,8 +13,10 @@
 #undef  _ShowLog
 
 using namespace std;
-static double miss_ration=0;
+static double miss_ratio=0;
 static double total_latency=0;
+static double total_meetlatency=0;
+static double total_meetlatency_cnt=0;
 static string Single_invterval;
 static string Star_invterval;
 static string Scheduler;
@@ -28,7 +30,7 @@ fstream Schdulefile;
 fstream Finalfile;
 fstream Resultfile;
 
-string GENPath="..\\GENresult\\input_single\\";
+string GENPath="..\\GENresult\\input_varied\\";
 string SchedulePath="..\\WSNresult\\Debug\\";
 string FinalPath="..\\WSNresult\\Debug\\";
 string ResultPath="..\\WSNresult\\Debug\\";
@@ -172,15 +174,22 @@ void SaveFile(short int setnum){
 	double Recv_count=0;
 	double Miss_count=0;
 	double latency=0;
+	double meetlatency=0, meetlatency_cnt=0;
 	for(Packet* pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
 		Recv_count=Recv_count+Hyperperiod/pkt->period;
 		Miss_count=Miss_count+pkt->Miss_count;
 		latency=latency+pkt->latency;
+		meetlatency=meetlatency+pkt->meetlatency;
+		meetlatency_cnt=meetlatency_cnt+pkt->meetlatency_cnt;
 	}
-	Resultfile<<"Meet ratio:"<<Miss_count/Recv_count<<endl;
-	Resultfile<<"Latency ratio:"<<latency/Miss_count<<endl;
-	Resultfile<<"Latency time:"<<latency<<endl;
+	Resultfile<<"Meet_ratio:"<<(1-Miss_count/Recv_count)<<endl;
+	Resultfile<<"MissLatency_perpkt:"<<latency/Miss_count<<endl;
+	Resultfile<<"MissLatency_time:"<<latency<<endl;
+	Resultfile<<"MeetLatency_perpkt:"<<meetlatency/meetlatency_cnt<<endl;
+	Resultfile<<"MeetLatency_time:"<<meetlatency<<endl;
 
+	total_meetlatency=total_meetlatency+meetlatency;
+	total_meetlatency_cnt=total_meetlatency_cnt+meetlatency_cnt;
 	//cout<<"Meet ratio:"<<Miss_count/Recv_count<<endl;
 
 	//--------------------------------------------是否meet
@@ -236,9 +245,9 @@ void SaveFile(short int setnum){
 		Meetcount++;
 	}
 	else{
-		miss_ration=miss_ration+(Miss_count/Recv_count);
+		miss_ratio=miss_ratio+(Miss_count/Recv_count);	//
 		total_latency=total_latency+(latency/Miss_count);
-
+		
 		Resultfile<<"Meet Deadline:MISS"<<endl;
 		#ifdef _ShowLog
 		cout<<"Meet Deadline:MISS"<<endl;
@@ -255,7 +264,7 @@ void SaveFile(short int setnum){
 /*===========================
 	此利用率Set儲存
 ===========================*/
-void SaveSet(int Set){
+void SaveSet(float rate, int Set){
 	cout<<"FinalResult"<<endl;
 	cout<<"Meet="<<Meetcount<<endl;
 	cout<<"Miss="<<Set-Meetcount<<endl;
@@ -265,13 +274,13 @@ void SaveSet(int Set){
 		cout<<"Node"<<SetNode->id<<"="<<SetNode->avgenergy/Set<<endl;
 		SetNode=SetNode->nextnd;
 	}
-	cout<<"Miss ratio="<<miss_ration/(Set-Meetcount)<<endl;
+	cout<<"Miss ratio="<<miss_ratio/(Set-Meetcount)<<endl;
 	cout<<"Latency="<<total_latency/(Set-Meetcount)<<endl;
 	cout<<"Lifetime="<<(SetHead->lifetime)/(Set)<<endl;
 	cout<<"AverageEnergy="<<AverageE/Set<<endl;
 	cout<<"=============================================="<<endl;
 
-	Finalfile<<"FinalResult"<<endl;
+	Finalfile<<"Rate"<<rate<<endl;
 	Finalfile<<"Meet="<<Meetcount<<endl;
 	Finalfile<<"Miss="<<Set-Meetcount<<endl;
 	Finalfile<<"SetAmount_MeetRatio="<<Meetcount/Set<<endl;
@@ -280,14 +289,17 @@ void SaveSet(int Set){
 		Finalfile<<"Node"<<SetNode->id<<"="<<SetNode->avgenergy/Set<<endl;
 		SetNode=SetNode->nextnd;
 	}
-	Finalfile<<"Miss ratio="<<miss_ration/(Set-Meetcount)<<endl;
-	Finalfile<<"Latency="<<total_latency/(Set-Meetcount)<<endl;
+	Finalfile<<"Missratio_perset="<<miss_ratio/(Set-Meetcount)<<endl;
+	Finalfile<<"MissLatency_perpkt="<<total_latency/(Set-Meetcount)<<endl;
+	Finalfile<<"MeetLatency_perpkt="<<total_meetlatency/total_meetlatency_cnt<<endl;
 	Finalfile<<"Lifetime="<<(SetHead->lifetime)/(Set)<<endl;
 	Finalfile<<"AverageEnergy="<<AverageE/Set<<endl;
 	Finalfile<<"=============================================="<<endl;
 	
 	total_latency=0;
-	miss_ration=0;
+	miss_ratio=0;
+	total_meetlatency=0;
+	total_meetlatency_cnt=0;
 	GENfile.close();
 	Schdulefile.close();
 	Resultfile.close();
@@ -353,6 +365,11 @@ void ExperimentSetting(short int*S_inv, short int*Star_inv, short int*Sche){
 		*S_inv=2;
 	}else if(Single_invterval.compare("Lazy")==0){
 		*S_inv=3;
+	}else if(Single_invterval.compare("Static")==0){
+		*S_inv=4;
+	}else{
+		printf("Error No Single interval proposal\n");
+		system("PAUSE");
 	}
 
 	//==========================Star interval setting
@@ -362,6 +379,9 @@ void ExperimentSetting(short int*S_inv, short int*Star_inv, short int*Sche){
 		*Star_inv=0;
 	}else if(Star_invterval.compare("Static")==0){
 		*Star_inv=1;
+	}else{
+		printf("Error No Star efficiency proposal\n");
+		system("PAUSE");
 	}
 
 	//==========================Scheduler setting
@@ -373,6 +393,9 @@ void ExperimentSetting(short int*S_inv, short int*Star_inv, short int*Sche){
 		*Sche=3;
 	}else if (Scheduler.compare("Table")==0){
 		*Sche=1;
+	}else{
+		printf("Error No write-request proposal\n");
+		system("PAUSE");
 	}
 }
 

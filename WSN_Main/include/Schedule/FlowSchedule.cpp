@@ -35,7 +35,7 @@ void Schedule(int propose, int intervalpropose){
 			TDMASchedule();
 			break;
 		case 2:
-			FrameEDFSchedule_RD();
+			EIF();
 			break;
 		case 3:
 			Polling();
@@ -649,6 +649,9 @@ void BLE_EDF(Node *node){
 			//=============================================傳完,換下一packet
 			if(packet->exeload==0){
 
+				packet->meetlatency_cnt++;
+				packet->meetlatency=packet->meetlatency+(Timeslot - packet->arrival);
+
 				//判斷是否miss deadline
 				if((Timeslot)>=packet->deadline){
 #ifdef _ShowLog
@@ -1045,7 +1048,7 @@ void TDMASchedule(){
 	(Frame Deadline assignment is connection interval between tx event to next event.)
 	<D=timeslot+Tc, at event arrival>
 ***********************************************/
-void FrameEDFSchedule_RD(){
+void EIF(){
 	
 	TDMATable *table=TDMA_Tbl;
 	Node *node=Head->nextnd;
