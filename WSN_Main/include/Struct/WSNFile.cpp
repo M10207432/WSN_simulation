@@ -30,7 +30,7 @@ fstream Schdulefile;
 fstream Finalfile;
 fstream Resultfile;
 
-string GENPath="..\\GENresult\\input_varied\\";
+string GENPath="..\\GENresult\\input_single\\";
 string SchedulePath="..\\WSNresult\\Debug\\";
 string FinalPath="..\\WSNresult\\Debug\\";
 string ResultPath="..\\WSNresult\\Debug\\";
