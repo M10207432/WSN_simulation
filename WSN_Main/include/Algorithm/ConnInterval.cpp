@@ -592,10 +592,14 @@ void EventInterval::EIMA_2(){
 	int MaxAdvinter=0;	//對應廣播群中最大的廣播間距
 	short int frameid=1;
 
+	//按照Node lifetime做interval校正
 	double res_total_u=0;
 	for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd){
 		res_total_u=res_total_u+1/(BatteryCapacity/(((I_notify*Time_notify)+(I_sleep*(n->eventinterval*unit-Time_notify)))/(n->eventinterval*unit)));
 	}
+
+
+
 	//-------------------------------Assign給FrameTbl,只有Connection node為3個用
 	FrameTbl=new FrameTable;
 	FrameTable* Ftbl=FrameTbl;

@@ -30,7 +30,7 @@ fstream Schdulefile;
 fstream Finalfile;
 fstream Resultfile;
 
-string GENPath="..\\GENresult\\input_single\\";
+string GENPath="..\\GENresult\\input_varied_node3\\";
 string SchedulePath="..\\WSNresult\\Debug\\";
 string FinalPath="..\\WSNresult\\Debug\\";
 string ResultPath="..\\WSNresult\\Debug\\";
@@ -290,6 +290,7 @@ void SaveSet(float rate, int Set){
 		SetNode=SetNode->nextnd;
 	}
 	Finalfile<<"Missratio_perset="<<miss_ratio/(Set-Meetcount)<<endl;
+	Finalfile<<"Meetratio_perset="<<1-(miss_ratio/(Set-Meetcount))<<endl;
 	Finalfile<<"MissLatency_perpkt="<<total_latency/(Set-Meetcount)<<endl;
 	Finalfile<<"MeetLatency_perpkt="<<total_meetlatency/total_meetlatency_cnt<<endl;
 	Finalfile<<"Lifetime="<<(SetHead->lifetime)/(Set)<<endl;

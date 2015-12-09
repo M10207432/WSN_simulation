@@ -200,6 +200,7 @@ void FlowEDF(){
 						packet->arrival=packet->deadline;
 						packet->deadline=packet->deadline+packet->period;
 						packet->CMP_D=packet->CMP_D+packet->period;
+
 						packet->State="Idle";		//傳輸狀態
 						packet->exehop=packet->hop;	
 					}
@@ -554,14 +555,22 @@ void Schedulability(){
 			Have to Meet Deadline
 =======================================*/
 void CheckPkt(){
-
+	/*
+	if(Timeslot==4700){
+		system("PAUSE");
+	}
+	*/
 	for(Packet *pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
 		if( pkt->CMP_D<=Timeslot && pkt->deadline<=Timeslot){
+			if(pkt->CMP_D<pkt->deadline){
+				pkt->CMP_D=pkt->deadline;
+			}
 			pkt->CMP_D=pkt->CMP_D+pkt->period;
+
 			pkt->Miss_count++;	
 
 			Schdulefile<<Timeslot<<" ";
-			Schdulefile<<"Node"<<pkt->nodeid<<" (PKT"<<pkt->id<<" Miss deadline"<<" Deadline "<<pkt->deadline<<")";
+			Schdulefile<<"Node"<<pkt->nodeid<<" (PKT"<<pkt->id<<" Miss deadline"<<" Deadline "<<pkt->deadline<<" CMP_D:"<<pkt->CMP_D<<")";
 			Schdulefile<<endl;
 
 			Meetflag=false;
@@ -659,7 +668,9 @@ void BLE_EDF(Node *node){
 #endif
 					Schdulefile<<"(PKT"<<packet->id<<" Miss deadline"<<" Deadline "<<packet->deadline<<")";
 					
-					packet->latency=packet->latency+(Timeslot-packet->deadline);//Record latency
+
+					//packet->latency=packet->latency+(Timeslot-packet->deadline);//Record latency
+					packet->latency=packet->latency+(Timeslot-packet->arrival);//Record latency
 
 					Meetflag=false;
 					//system("PAUSE");
@@ -669,7 +680,6 @@ void BLE_EDF(Node *node){
 				packet->exeload=packet->load;
 				packet->arrival=packet->deadline;
 				packet->deadline=packet->deadline+packet->period;
-
 				//packet->CMP_D=packet->CMP_D+packet->period;
 
 				packet->exehop=packet->hop;	
@@ -822,21 +832,29 @@ void FrameEDFSchedule(){
 	
 	if(Head->FrameSize<=0){ //(Head->RecvNode目前是先擋住，但之後要對FrameSize做修改)
 		
-		//找最小FrameTable的deadline
-		FrameTable* PreFrame=Work_tbl;
-
-		Work_tbl=FrameTbl;
+		//找最小FrameTable的deadline <Arrival>
+		Work_tbl=NULL;
 		for(FrameTable *Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
-			if((Work_tbl->Deadline > Ftbl->Deadline) ){
-				Work_tbl=Ftbl;
+			if(Timeslot >= Ftbl->arrival){
+				if(Work_tbl==NULL){
+					Work_tbl=Ftbl;
+				}else{
+					if((Work_tbl->Deadline > Ftbl->Deadline) ){
+						Work_tbl=Ftbl;
+					}
+				}
 			}
 		}
+        
+        if(Work_tbl!=NULL){
+            Work_tbl->arrival=Work_tbl->arrival+Work_tbl->Period;
+            Work_tbl->ConnNode->State="Notify";
+            Head->FrameSize=Work_tbl->Size;
+            Work_tbl->Deadline=Work_tbl->Deadline+Work_tbl->Period;
 
-		Work_tbl->ConnNode->State="Notify";
-		Head->FrameSize=Work_tbl->Size;
-
-		Work_tbl->Deadline=Work_tbl->Deadline+Work_tbl->Period;
-		//Work_tbl->Deadline=Timeslot+Work_tbl->Period;
+            
+            Head->FrameSize--;
+        }
 	}else{
 		Head->FrameSize--;		
 	}
@@ -1065,7 +1083,7 @@ void EIF(){
 	
 	if(Head->FrameSize<=0){ //(Head->RecvNode目前是先擋住，但之後要對FrameSize做修改)
 		
-		//找Crtical Frame (Period最小)
+		//找Crtical Frame (Period最小) <No matter Arrival>
 		FrameTable* CrticalFrame=FrameTbl;
 		for(FrameTable* Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
 			if(CrticalFrame->Deadline > Ftbl->Deadline){
@@ -1073,7 +1091,7 @@ void EIF(){
 			}
 		}
 
-		//找最小FrameTable的deadline
+		//找最小FrameTable的deadline <Arrival>
 		Work_tbl=NULL;
 		for(FrameTable *Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
 			if(Timeslot >= Ftbl->arrival){
@@ -1091,7 +1109,8 @@ void EIF(){
 		if(Work_tbl!=NULL){
 			
 			if(CrticalFrame!=Work_tbl){
-				if(CrticalFrame->Deadline < (int(Work_tbl->Size)+int(CrticalFrame->Size)+Timeslot)){
+				//if(CrticalFrame->Deadline < (int(Work_tbl->Size)+int(CrticalFrame->Size)+Timeslot)){
+				if(floor(CrticalFrame->Deadline/CrticalFrame->Size)*CrticalFrame->Size < (int(Work_tbl->Size)+Timeslot)){
 					if(Timeslot >= CrticalFrame->arrival){
 						Work_tbl=CrticalFrame;
 					}else{
@@ -1106,7 +1125,6 @@ void EIF(){
 				Head->FrameSize=Work_tbl->Size;
 				Work_tbl->Deadline=Work_tbl->Deadline+Work_tbl->Period;
 
-				
 				Head->FrameSize--;
 			}
 		}
@@ -1115,9 +1133,6 @@ void EIF(){
 		Head->FrameSize--;		
 	}
 	
-	if(Timeslot==1452){
-		int y=0;
-	}
 	/*----------------------------------------------
 		ConnSet中被通知的Node做對應傳輸或SCAN
 		Notify & Scan可同時運作
@@ -1325,7 +1340,7 @@ void DIFCB(){
 void Finalcheck(){
 	for(Packet* pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
 		if(pkt->deadline<=Timeslot){
-			pkt->latency=pkt->latency+(Timeslot-pkt->deadline);
+			pkt->latency=pkt->latency+(Timeslot-pkt->arrival);
 		}
 	}
 }
