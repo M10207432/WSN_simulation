@@ -55,17 +55,18 @@ void NodeLocation();	//分配節點位置
 /*=================================
 		Global value
 ==================================*/
-double period[]={200,500,1000};
+//double period[]={200,500,1000};
+double period[]={1000,2000,3000};
 double Hyperperiod=10000;
 double periodrange;			//period  rand時的差距
-const int Level1_Nodenum = 8;		//第一層Node數量<ConnNode>
+const int Level1_Nodenum = 3;		//第一層Node數量<ConnNode>
 const int Level2_Nodenum = 0;		//第二層Node數量<AdvNode>
-const int pktnum=4;				//每個node上的封包數
-const short int Set=100;			//每一利用的Set數
-double Initrate=80;					//開始GEN的rate
-double inv_r=80;							//rate差距
+const int pktnum=2;				//每個node上的封包數
+const short int Set=1;			//每一利用的Set數
+double Initrate=10;					//開始GEN的rate
+double inv_r=20;							//rate差距
 double Maxrate=1000;				//最終 rate
-string GENfile="..\\GENresult\\input_varied_node8\\";//放到前一目錄下的GENresult目錄，產生txt檔
+string GENfile="..\\GENresult\\input_practice\\";//放到前一目錄下的GENresult目錄，產生txt檔
 char Resultfile[]="..\\GENresult\\WSNGEN.txt";//放到前一目錄下的GENresult目錄，產生txt檔
 
 const short int Max_X_Axis = 100;	//最大X軸範圍
@@ -411,6 +412,7 @@ void create_varied(double rate){
 			
 			double p=0;
 			do{
+				
 				if(Level1_Nodenum==1){
 					p=rand()%900+100;
 				}else{
@@ -420,16 +422,23 @@ void create_varied(double rate){
 						p=(rand()%400)+(n->period-200);	//300~700
 					}else if(n->period==1000){
 						p=(rand()%400)+(n->period-200);	//800~1200
+					}else{
+						p=Hyperperiod;
 					}
 					//p=((double(rand()%int(pkt->load))+1)/pkt->load)*n->period;//0~avg pkt->load ===========rand
 				}
 				
-				
 			}while((int)Hyperperiod%(int)p!=0);
 
 			//save data
-			pkt->load=ceil(pkt->load*(p/n->period));
-			pkt->period=p;
+			
+			if(p!=Hyperperiod){
+				pkt->load=ceil(pkt->load*(p/n->period));
+				pkt->period=p;
+			}else{
+				pkt->period=n->period;
+			}
+
 			pkt->utilization=pkt->load/pkt->period;
 		}
 	}

@@ -594,8 +594,11 @@ void EventInterval::EIMA_2(){
 
 	//按照Node lifetime做interval校正
 	double res_total_u=0;
+	unit=0.001;
 	for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd){
-		res_total_u=res_total_u+1/(BatteryCapacity/(((I_notify*Time_notify)+(I_sleep*(n->eventinterval*unit-Time_notify)))/(n->eventinterval*unit)));
+		double lifetime=(BatteryCapacity/(((I_notify*Time_notify)+(I_sleep*(n->eventinterval*unit-Time_notify)))/(n->eventinterval*unit)));
+		double weight=1/lifetime;
+		res_total_u=res_total_u+weight;
 	}
 
 
@@ -639,6 +642,7 @@ void EventInterval::EIMA_2(){
 		}
 	}
 	*/
+	unit=0.01;
 	if(--frameid>nodelevel1){
 		printf("The Frame size is larger than three, the FrameTable is error\n");
 		system("PAUSE");
