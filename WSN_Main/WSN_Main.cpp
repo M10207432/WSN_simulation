@@ -123,7 +123,7 @@ int main(int argc, char* argv[]){
 	cin>>TDMA_Rateproposal;
 	cout<<"Type TDMA schedule (0->EDF, 1->TDMA table):";
 	cin>>TDMAscheduleproposal;
-	*/
+	*/	
 
 	for(float U=MIN_Rate; U<=MAX_Rate; U+=inv_r){
 		cout<<"Data Rate: "<<U<<endl;

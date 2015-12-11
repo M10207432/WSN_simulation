@@ -601,8 +601,6 @@ void EventInterval::EIMA_2(){
 		res_total_u=res_total_u+weight;
 	}
 
-
-
 	//-------------------------------Assign給FrameTbl,只有Connection node為3個用
 	FrameTbl=new FrameTable;
 	FrameTable* Ftbl=FrameTbl;
@@ -619,7 +617,7 @@ void EventInterval::EIMA_2(){
 			
 			Ftbl->Size=(((1/(BatteryCapacity/(((I_notify*Time_notify)+(I_sleep*(tbl->n1->eventinterval*unit-Time_notify)))/(tbl->n1->eventinterval*unit))))/res_total_u))
 						* tbl->n1->eventinterval;
-			Ftbl->Size=Ftbl->Size-1;
+			//Ftbl->Size=Ftbl->Size-1;
 			/*---------------------------------------
 			---------------------------------------*/
 			Ftbl->Utilization=1/nodelevel1;
@@ -632,6 +630,36 @@ void EventInterval::EIMA_2(){
 		}
 	}
 	Ftbl->pre_tbl->next_tbl=NULL;
+
+	/*=======================================
+	=======================================*/
+	double Minperiod_size=0;
+	double Minperiod_period=-1;
+	double _Maxsize=0;
+	for(FrameTable* Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
+		//Find size of minimum period
+		if(Minperiod_period==-1){
+			Minperiod_period=Ftbl->Period;
+			Minperiod_size=Ftbl->Size;
+		}else{
+			if(Ftbl->Period<Minperiod_period){
+				Minperiod_period=Ftbl->Period;
+				Minperiod_size=Ftbl->Size;
+			}
+		}
+
+		//Find max size
+		if(Ftbl->Size>_Maxsize){
+			_Maxsize=Ftbl->Size;
+		}
+	}
+
+	if((_Maxsize+Minperiod_size)>Minperiod_period){
+		for(FrameTable* Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
+			Ftbl->Size=Minperiod_period/2;
+			Ftbl->ConnNode->eventinterval=Ftbl->Size;	//更新node上的connection interval
+		}	
+	}
 	//-------------------------------------Assign 給 AdvNode使用
 	/*
 	for(FrameTable* Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){

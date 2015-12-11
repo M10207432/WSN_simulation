@@ -12,6 +12,8 @@
 
 #undef  _ShowLog
 
+#define Output(Type) (Type ?Finalfile :cout) //若Type為0 =Finalfile, 1 =cout
+
 using namespace std;
 static double miss_ratio=0;
 static double total_latency=0;
@@ -265,37 +267,42 @@ void SaveFile(short int setnum){
 	此利用率Set儲存
 ===========================*/
 void SaveSet(float rate, int Set){
-	cout<<"FinalResult"<<endl;
-	cout<<"Meet="<<Meetcount<<endl;
-	cout<<"Miss="<<Set-Meetcount<<endl;
-	cout<<"MeetRatio="<<Meetcount/Set<<endl;
-	SetNode=SetHead->nextnd;
-	while(SetNode!=NULL){
-		cout<<"Node"<<SetNode->id<<"="<<SetNode->avgenergy/Set<<endl;
-		SetNode=SetNode->nextnd;
-	}
-	cout<<"Miss ratio="<<miss_ratio/(Set-Meetcount)<<endl;
-	cout<<"Latency="<<total_latency/(Set-Meetcount)<<endl;
-	cout<<"Lifetime="<<(SetHead->lifetime)/(Set)<<endl;
-	cout<<"AverageEnergy="<<AverageE/Set<<endl;
-	cout<<"=============================================="<<endl;
+	int printcount=0;
+	while(printcount<2){
+	
+		//===================================================
+		Output(printcount)<<"Rate"<<rate<<endl;
+		Output(printcount)<<"Meet="<<Meetcount<<endl;
+		Output(printcount)<<"Miss="<<Set-Meetcount<<endl;
+		Output(printcount)<<"SetAmount_MeetRatio="<<Meetcount/Set<<endl;
+		SetNode=SetHead->nextnd;
+		while(SetNode!=NULL){
+			Output(printcount)<<"Node"<<SetNode->id<<"="<<SetNode->avgenergy/Set<<endl;
+			SetNode=SetNode->nextnd;
+		}
+		if(miss_ratio==0){
+			Output(printcount)<<"Missratio_perset="<<0<<endl;
+			Output(printcount)<<"Meetratio_perset="<<1<<endl;
+			Output(printcount)<<"MissLatency_perpkt="<<0<<endl;
+		}else{
+			/*
+			Output(printcount)<<"Missratio_perset="<<miss_ratio/(Set-Meetcount)<<endl;
+			Output(printcount)<<"Meetratio_perset="<<1-(miss_ratio/(Set-Meetcount))<<endl;
+			Output(printcount)<<"MissLatency_perpkt="<<total_latency/(Set-Meetcount)<<endl;
+			*/
+			Output(printcount)<<"Missratio_perset="<<miss_ratio/(Set)<<endl;
+			Output(printcount)<<"Meetratio_perset="<<1-(miss_ratio/(Set))<<endl;
+			Output(printcount)<<"MissLatency_perpkt="<<total_latency/(Set)<<endl;
+		}
+	
+		//Output(printcount)<<"MeetLatency_perpkt="<<total_meetlatency/total_meetlatency_cnt<<endl;
+		Output(printcount)<<"MeetLatency_perpkt="<<total_meetlatency/total_meetlatency_cnt<<endl;
+		Output(printcount)<<"Lifetime="<<(SetHead->lifetime)/(Set)<<endl;
+		Output(printcount)<<"AverageEnergy="<<AverageE/Set<<endl;
+		Output(printcount)<<"=============================================="<<endl;
 
-	Finalfile<<"Rate"<<rate<<endl;
-	Finalfile<<"Meet="<<Meetcount<<endl;
-	Finalfile<<"Miss="<<Set-Meetcount<<endl;
-	Finalfile<<"SetAmount_MeetRatio="<<Meetcount/Set<<endl;
-	SetNode=SetHead->nextnd;
-	while(SetNode!=NULL){
-		Finalfile<<"Node"<<SetNode->id<<"="<<SetNode->avgenergy/Set<<endl;
-		SetNode=SetNode->nextnd;
+		printcount++;
 	}
-	Finalfile<<"Missratio_perset="<<miss_ratio/(Set-Meetcount)<<endl;
-	Finalfile<<"Meetratio_perset="<<1-(miss_ratio/(Set-Meetcount))<<endl;
-	Finalfile<<"MissLatency_perpkt="<<total_latency/(Set-Meetcount)<<endl;
-	Finalfile<<"MeetLatency_perpkt="<<total_meetlatency/total_meetlatency_cnt<<endl;
-	Finalfile<<"Lifetime="<<(SetHead->lifetime)/(Set)<<endl;
-	Finalfile<<"AverageEnergy="<<AverageE/Set<<endl;
-	Finalfile<<"=============================================="<<endl;
 	
 	total_latency=0;
 	miss_ratio=0;
