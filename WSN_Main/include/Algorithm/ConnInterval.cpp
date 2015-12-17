@@ -591,14 +591,47 @@ void EventInterval::EIMA_2(){
 	int devicenum=0;	//device 數量
 	int MaxAdvinter=0;	//對應廣播群中最大的廣播間距
 	short int frameid=1;
+	double min_interval=-1;//最小的interval
 
-	//按照Node lifetime做interval校正
+	//若有interval大於4秒 (400 unit為10ms)，要往前座scaling所以unit會為
 	double res_total_u=0;
-	unit=0.001;
 	for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd){
-		double lifetime=(BatteryCapacity/(((I_notify*Time_notify)+(I_sleep*(n->eventinterval*unit-Time_notify)))/(n->eventinterval*unit)));
+		if(n->eventinterval>400){
+			unit=0.001;		
+		}
+	}
+	//按照Node lifetime做interval校正
+	for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd){
+		double avgcurrent=(((I_notify*Time_notify)+(I_sleep*(n->eventinterval*unit-Time_notify)))/(n->eventinterval*unit));
+		
+		//=======================
+		
+		double Qc=Hyperperiod*I_notify*Time_notify/(n->eventinterval);
+		double totalcnt=0;
+		double Qt=0;
+		for(Packet* pkt=n->pkt; pkt!=NULL; pkt=pkt->nodenextpkt){
+			double count=((Hyperperiod/pkt->period)*ceil(pkt->load/payload));
+			totalcnt+=count;
+		}
+		Qt=(totalcnt-(Hyperperiod/n->eventinterval))*I_Tran*Time_Tran;
+		
+		//Qt=0;
+		double Seqavgcurrent=((Qc+Qt)+I_sleep*(Hyperperiod*unit-(Qc/I_notify)-(Qt/I_Tran))) / (Hyperperiod*unit);
+		//avgcurrent=Seqavgcurrent;
+		//Seqavgcurrent=(((I_notify*Time_notify*totalcnt)+(I_sleep*(n->eventinterval*unit-Time_notify*totalcnt)))/(Hyperperiod*unit));
+		//=======================
+		
+		n->avgcurrent=avgcurrent;
+		double lifetime=(1/n->avgcurrent);
 		double weight=1/lifetime;
 		res_total_u=res_total_u+weight;
+
+		//找最小interval
+		if(min_interval==-1){
+			min_interval=n->eventinterval;
+		}else if(n->eventinterval<min_interval){
+			min_interval=n->eventinterval;
+		}
 	}
 
 	//-------------------------------Assign給FrameTbl,只有Connection node為3個用
@@ -615,9 +648,12 @@ void EventInterval::EIMA_2(){
 			/*---------------------------------------
 			---------------------------------------*/
 			
-			Ftbl->Size=(((1/(BatteryCapacity/(((I_notify*Time_notify)+(I_sleep*(tbl->n1->eventinterval*unit-Time_notify)))/(tbl->n1->eventinterval*unit))))/res_total_u))
+			//Ftbl->Size=(((1/(BatteryCapacity/(((I_notify*Time_notify)+(I_sleep*(tbl->n1->eventinterval*unit-Time_notify)))/(tbl->n1->eventinterval*unit))))/res_total_u))
+			//			* tbl->n1->eventinterval;
+			//Ftbl->Size=(((1/(BatteryCapacity/ tbl->n1->avgcurrent))/res_total_u))
+			//			* tbl->n1->eventinterval;
+			Ftbl->Size=((tbl->n1->avgcurrent)/res_total_u)
 						* tbl->n1->eventinterval;
-			//Ftbl->Size=Ftbl->Size-1;
 			/*---------------------------------------
 			---------------------------------------*/
 			Ftbl->Utilization=1/nodelevel1;
@@ -632,7 +668,9 @@ void EventInterval::EIMA_2(){
 	Ftbl->pre_tbl->next_tbl=NULL;
 
 	/*=======================================
+			加入Demand bound
 	=======================================*/
+	/*
 	double Minperiod_size=0;
 	double Minperiod_period=-1;
 	double _Maxsize=0;
@@ -660,6 +698,7 @@ void EventInterval::EIMA_2(){
 			Ftbl->ConnNode->eventinterval=Ftbl->Size;	//更新node上的connection interval
 		}	
 	}
+	*/
 	//-------------------------------------Assign 給 AdvNode使用
 	/*
 	for(FrameTable* Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){

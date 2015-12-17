@@ -135,6 +135,7 @@ void StructGEN(){
 			node->EventTime=-1;
 			node->Notify_evtcount=0;
 			node->Tran_evtcount=0;
+			node->avgcurrent=0;
 
 			packet=node->pkt;
 
