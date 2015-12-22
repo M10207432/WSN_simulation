@@ -55,18 +55,18 @@ void NodeLocation();	//分配節點位置
 /*=================================
 		Global value
 ==================================*/
-//double period[]={200,500,1000};
-double period[]={1000,2000,3000};
+double period[]={500,500,500};
+//double period[]={1000,2000,3000};
 double Hyperperiod=10000;
 double periodrange;			//period  rand時的差距
 const int Level1_Nodenum = 3;		//第一層Node數量<ConnNode>
 const int Level2_Nodenum = 0;		//第二層Node數量<AdvNode>
-const int pktnum=2;				//每個node上的封包數
-const short int Set=1;			//每一利用的Set數
-double Initrate=10;					//開始GEN的rate
-double inv_r=20;							//rate差距
-double Maxrate=1000;				//最終 rate
-string GENfile="..\\GENresult\\input_practice\\";//放到前一目錄下的GENresult目錄，產生txt檔
+const int pktnum=4;				//每個node上的封包數
+const short int Set=100;			//每一利用的Set數
+double Initrate=80;					//開始GEN的rate
+double inv_r=80;							//rate差距
+double Maxrate=960;				//最終 rate
+string GENfile="..\\GENresult\\input_varied_node3\\";//放到前一目錄下的GENresult目錄，產生txt檔
 char Resultfile[]="..\\GENresult\\WSNGEN.txt";//放到前一目錄下的GENresult目錄，產生txt檔
 
 const short int Max_X_Axis = 100;	//最大X軸範圍
