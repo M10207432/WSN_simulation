@@ -127,6 +127,8 @@ void NodeState(){
 ========================================*/
 
 void Node_EnergyState(Node *node){
+	
+	double v=0.003;
 
 	if(node!=NULL){
 		/*====================================================
@@ -139,7 +141,7 @@ void Node_EnergyState(Node *node){
 
 		//==========================Event arrival ª¬ºA
 		if(node->EvtArrival){
-			node->energy=node->energy+((I_notify*Time_notify)+(I_sleep*(Time_sleep-Time_notify)));
+			node->energy=node->energy+((I_notify*Time_notify)+(I_sleep*(v-Time_notify)));
 			node->Notify_evtcount+=1;
 		}else if(node->State=="Transmission" && Head->RecvNode==node){ //==========================Transmission ª¬ºA
 			node->energy=node->energy+((I_Tran*Time_Tran)+(I_sleep*(Time_sleep-Time_Tran)));

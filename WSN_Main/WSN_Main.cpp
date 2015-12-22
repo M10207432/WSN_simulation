@@ -28,9 +28,9 @@ const float MAX_Rate=960;
 const short int Set=100;
 
 short int readsetting=0;				//是否要讀取本地Setting.txt
-short int Rateproposal=2;				//AssignRate()中的方法編號 0=>Event, 1=>MEI, 2=>DIF, 3=>Lazy and 4=>min period<2,3屬於單一node上的調整>
-short int TDMA_Rateproposal=2;			//TDMA和connection interval上的校正 0=>LDC(各除3), 1=>選最小interval除TDMA size, 2=>照lifetime ratio
-short int TDMAscheduleproposal=2;		//Gateway 通知node傳輸順序 0=>做EDF排程 1=>直接照TDMA表做傳輸 2=>EIF 3=>Polling
+short int Rateproposal=4;				//AssignRate()中的方法編號 0=>Event, 1=>MEI, 2=>DIF, 3=>Lazy and 4=>min period<2,3屬於單一node上的調整>
+short int TDMA_Rateproposal=1;			//TDMA和connection interval上的校正 0=>LDC(各除3), 1=>選最小interval除TDMA size, 2=>照lifetime ratio
+short int TDMAscheduleproposal=1;		//Gateway 通知node傳輸順序 0=>做EDF排程 1=>直接照TDMA表做傳輸 2=>EIF 3=>Polling
 
 bool sche_flag=false;					//是否要測試schedulability
 short int TDMAproposal=0;				//TDMA的assign方法 0=>自己的方法(只有一個superslot), 1=>Node base方法 (會再接續加入superslot)
@@ -92,17 +92,17 @@ bool Meetflag=true;					//看是否meet deadline
 double Vcc=3.3;			//BLE 驅動電壓
 
 double I_sleep=0.000001;	//Sleep 電流 1uA
-double Time_sleep=0.01;		//Sleep 時間 10ms (uint time)
+double Time_sleep=0.001;		//Sleep 時間 1ms (uint time)
 double I_notify=0.008246;	//Notify 電流 8.246mA
 double Time_notify=0.002675;	//Notify 時間 2.675ms
 double I_Tran=0.014274;	//Transmission 電流 14.274mA
 double Time_Tran=0.00049;	//Transmission 時間 0.49ms
 double BatteryCapacity=0.230; //230mAh
+double unit=0.001;		//時間單位為1ms
 
 double Ie=0.07679763;		//傳輸峰值 電流
 double Te=0.0002768;		//傳輸時間
 double K=1;				//Rate power常數
-double unit=0.01;		//時間單位為10ms
 double TotalEnergy=0;
 double parma=0.00191571992;
 double parmb=24.4058498;

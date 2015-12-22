@@ -32,7 +32,7 @@ fstream Schdulefile;
 fstream Finalfile;
 fstream Resultfile;
 
-string GENPath="..\\GENresult\\input_single\\";
+string GENPath="..\\GENresult\\input_varied_node3\\";
 string SchedulePath="..\\WSNresult\\Debug\\";
 string FinalPath="..\\WSNresult\\Debug\\";
 string ResultPath="..\\WSNresult\\Debug\\";
@@ -98,7 +98,7 @@ void SaveFile(short int setnum){
 	node=Head->nextnd;
 	while(node!=NULL){
 		node->energy=node->energy*Vcc;
-		node->lifetime=BatteryCapacity/((node->energy/Vcc)/(Hyperperiod*0.01));
+		node->lifetime=BatteryCapacity/((node->energy/Vcc)/(Hyperperiod*0.001));
 
 		#ifdef _ShowLog
 				cout<<"Node"<<node->id<<" E:"<<node->energy<<" Lifetime:"<<node->lifetime<<endl;

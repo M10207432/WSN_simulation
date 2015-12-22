@@ -12,6 +12,7 @@ class EventInterval{
 		void Event();
 		void MEI(Node *);
 		void DIF();
+		void Greedy();
 		void Rate_TO_Interval(int );
 
 		void Algorithm(int);

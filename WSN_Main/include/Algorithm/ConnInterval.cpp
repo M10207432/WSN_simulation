@@ -35,6 +35,9 @@ void EventInterval::Algorithm(int Rateproposal){
 	case 2:
 		DIF();
 		break;
+	case 4:
+		Greedy();
+		break;
 	default:
 		break;
 	}
@@ -731,4 +734,22 @@ void EventInterval::EIMA_2(){
 			" period="<<Ftbl->Period<<endl;
 	}
 #endif
+}
+
+void EventInterval::Greedy(){
+	for(Node *n=Head->nextnd; n!=NULL; n=n->nextnd){
+		//find the minimum period
+		Packet* Minpkt=NULL;
+		for(Packet* pkt=n->pkt; pkt!=NULL; pkt=pkt->nodenextpkt){
+			if(Minpkt==NULL){
+				Minpkt=pkt;
+			}else{
+				if(Minpkt->period > pkt->period){
+					Minpkt=pkt;
+				}
+			}
+		}
+
+		n->eventinterval=Minpkt->period;
+	}
 }

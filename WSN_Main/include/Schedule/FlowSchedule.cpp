@@ -556,10 +556,11 @@ void Schedulability(){
 =======================================*/
 void CheckPkt(){
 	/*
-	if(Timeslot==4700){
+	if(Timeslot==200){
 		system("PAUSE");
 	}
 	*/
+
 	for(Packet *pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
 		if( pkt->CMP_D<=Timeslot && pkt->deadline<=Timeslot){
 			if(pkt->CMP_D<pkt->deadline){
@@ -616,7 +617,8 @@ void BLESchedule(int FlowSlot, bool Flow_flag){
 		進入一次只會傳輸payload大小 (20bytes)
 ============================================*/
 void BLE_EDF(Node *node){
-	
+		CheckPkt(); //因很有可能在此進入connection event並結束造成miss算到 (Timeslot有加3)
+
 		/*---------------------------------------------
 				判斷Flow 是否為NULL
 				若有封包則進行傳輸
@@ -671,7 +673,7 @@ void BLE_EDF(Node *node){
 
 					//packet->latency=packet->latency+(Timeslot-packet->deadline);//Record latency
 					packet->latency=packet->latency+(Timeslot-packet->arrival);//Record latency
-
+					
 					Meetflag=false;
 					//system("PAUSE");
 				}
@@ -928,6 +930,8 @@ void FrameEDFSchedule(){
 				******************************************/
 
 				n->State="Transmission";
+				Timeslot=Timeslot+2;
+				Head->FrameSize=Head->FrameSize-2;
 			}
 			
 			//-------------------進行傳輸 (Head->RecvNode要確認目前沒node或為當前node)
@@ -1029,6 +1033,9 @@ void TDMASchedule(){
 			if(n->EvtArrival && n->State=="Notify" && (Head->RecvNode==NULL || Head->RecvNode==n)){
 				Head->RecvNode=n;	//Head->RecvNode切換
 				n->State="Transmission";
+
+				Timeslot=Timeslot+2;
+				Head->FrameSize=Head->FrameSize-2;
 			}
 			
 			//-------------------進行傳輸 (Head->RecvNode要確認目前沒node或為當前node)
@@ -1158,7 +1165,10 @@ void EIF(){
 			if(n->EvtArrival && n->State=="Notify" && (Head->RecvNode==NULL || Head->RecvNode==n)){
 				Head->RecvNode=n;	//Head->RecvNode切換
 				n->State="Transmission";
-								
+				
+				Timeslot=Timeslot+2;
+				Head->FrameSize=Head->FrameSize-2;
+
 			}
 			
 			//-------------------進行傳輸 (Head->RecvNode要確認目前沒node或為當前node)
@@ -1200,9 +1210,11 @@ void SingleNodeSchedule(int intervalpropose){
 	case 3:	//------------Lazy
 		LazyIntervalCB();
 		break;
+		/*
 	case 4:
 		SingleStatic();
 		break;
+		*/
 	}
 	
 
@@ -1217,6 +1229,8 @@ void SingleNodeSchedule(int intervalpropose){
 		
 		Head->RecvNode=n;		//Head->RecvNode切換
 		n->State="Transmission";
+		Timeslot=Timeslot+2;
+
 	}else{
 		n->EvtArrival=false;
 	}
@@ -1253,7 +1267,7 @@ void LazyOnWrite(){
 	Rate_BLE=(payload*Maxbuffersize)/(Head->nextnd->eventinterval);	//計算此時的BLE rate
 
 	if(Rate_data>=Rate_BLE){
-		Head->nextnd->eventinterval=1;
+		Head->nextnd->eventinterval=10;
 		Callbackclock=EXECBclock;		//Reset timer
 	}
 }
@@ -1290,9 +1304,9 @@ void LazyIntervalCB(){
 		}
 
 		if(Timeslot==0){
-			Head->nextnd->eventinterval=1;
-		}else if(Head->nextnd->eventinterval<1){
-			Head->nextnd->eventinterval=1;
+			Head->nextnd->eventinterval=10;
+		}else if(Head->nextnd->eventinterval<10){
+			Head->nextnd->eventinterval=10;
 		}
 
 		//Reset timer
@@ -1326,8 +1340,8 @@ void DIFCB(){
 		}
 
 		Head->nextnd->eventinterval=(payload*Maxbuffersize)/MaxRate;
-		if(Head->nextnd->eventinterval<1){
-			Head->nextnd->eventinterval=1;
+		if(Head->nextnd->eventinterval<10){
+			Head->nextnd->eventinterval=10;
 		}
 		
 		//Reset timer
@@ -1443,7 +1457,9 @@ void Polling(){
 			if(n->EvtArrival && n->State=="Notify" && (Head->RecvNode==NULL || Head->RecvNode==n)){
 				Head->RecvNode=n;	//Head->RecvNode切換
 				n->State="Transmission";
-								
+							
+				Timeslot=Timeslot+2;
+				Head->FrameSize=Head->FrameSize-2;
 			}
 			
 			//-------------------進行傳輸 (Head->RecvNode要確認目前沒node或為當前node)
