@@ -321,65 +321,47 @@ void EventInterval::Greedy(){
 }
 
 /*==============================================
-		結合 Energy Efficiency Interval & TDMA
-		做進一步確認可在最deadline前完成
-
-		=>會修正各node上的interval
-		=>Assign好各自SCAN duration
+			Low Duty Cycle
+		每一個connection interval為
+		各自Service interval除上nodelevel1
 ==============================================*/
 void EventInterval::LDC(){
-	bool EIMAEDF_flag=true;	//測試EIMA EDF 上對於inteval上的調整
-
-	double TDMASize=1;	//TDMASIZE
-	double Mininterval=Hyperperiod;	//最小的interval
-	double tmpinterval=Hyperperiod;
-	int devicenum=0;	//device 數量
-	int MaxAdvinter=0;	//對應廣播群中最大的廣播間距
+	//-------------------------------Assign給FrameTbl,只有Connection node為nodelevel1個用
 	short int frameid=1;
-
-	//-------------------------------Assign給FrameTbl,只有Connection node為3個用
 	FrameTbl=new FrameTable;
 	FrameTable* Ftbl=FrameTbl;
 
+	//-------------------------------建立FrameTable 並且assign connection interval
 	for(TDMATable* tbl=TDMA_Tbl; tbl!=NULL; tbl=tbl->next_tbl){
-		if(tbl->slot==frameid && tbl->n1->SendNode==Head){
+		if(tbl->slot==frameid && tbl->n1->SendNode==Head){	//確認順序 & 送給Master
+			//Init setting
 			Ftbl->id=frameid++;
 			Ftbl->Currentflag=false;
 			Ftbl->arrival=0;
-			Ftbl->Period=tbl->n1->eventinterval;
-			Ftbl->Deadline=tbl->n1->eventinterval;
-			
-			//Ftbl->Size=Ftbl->Period/nodelevel1;
-			Ftbl->Size=floor(Ftbl->Period/nodelevel1);
+			Ftbl->ConnNode= tbl->n1;					//Assign node給此Frame
 
-			Ftbl->Utilization=1/nodelevel1;
-			
-			Ftbl->ConnNode= tbl->n1;			//指向此Conn Node
-			tbl->n1->eventinterval=Ftbl->Size;	//更新node上的connection interval
+			//Waiting time & period setting
+			Ftbl->Period=tbl->n1->eventinterval;		//Assign Service interval as period
+			Ftbl->Deadline=tbl->n1->eventinterval;		//Assign Service interval as Deadline
+			Ftbl->Size=floor(Ftbl->Period/nodelevel1);	//Service inteval計算connection interval
+			Ftbl->ConnNode->eventinterval=Ftbl->Size;	//更新node上的connection interval
+			Ftbl->Utilization=Ftbl->Size/Ftbl->Period;		
 
+			//建立下一個FrameTable
 			Ftbl->next_tbl=new FrameTable;
 			Ftbl->next_tbl->pre_tbl=Ftbl;
 			Ftbl=Ftbl->next_tbl;
 		}
 	}
 	Ftbl->pre_tbl->next_tbl=NULL;
-	//-------------------------------------Assign 給 AdvNode使用
-	/*
-	for(FrameTable* Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
-		for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd)	{
-			if(n->SendNode!=Head){
-				
-			}
-		}
-	}
-	*/
+
+	//------------------------------------確認Frame數量不比nodelevel1多
 	if(--frameid>nodelevel1){
-		printf("The Frame size is larger than three, the FrameTable is error\n");
+		printf("The Frame size is larger than nodelevel1, the FrameTable is error\n");
 		system("PAUSE");
 	}
 	
-	
-	//---------------------------------Print 出資訊
+	//------------------------------------Print 出資訊
 #ifdef _Showlog
 	for(Node* node=Head->nextnd; node!=NULL; node=node->nextnd){
 		cout<<	"Node"<<node->id<<"=> "<<
@@ -396,55 +378,42 @@ void EventInterval::LDC(){
 #endif
 }
 /*==================================
-		Small Interval Divide
+		IntervalDivide
+	找最小的Service interval除上nodelevel1
+	當每node的connection interval
 ==================================*/
 void EventInterval::IntervalDivide(){
 
-	double TDMASize=1;	//TDMASIZE
-	double Mininterval=Hyperperiod;	//最小的interval
-	double tmpinterval=Hyperperiod;
-	int devicenum=0;	//device 數量
-	int MaxAdvinter=0;	//對應廣播群中最大的廣播間距
+	double Mininterval=Hyperperiod;	//最小的Service interval
 	short int frameid=1;
-	
-	//-------------------------------考量TDMA架構，做Node interval上的優化
-	//找TDMA size
-	for(TDMATable* tbl=TDMA_Tbl; tbl!=NULL;tbl=tbl->next_tbl){
-		if(tbl->slot>TDMASize)
-			TDMASize=tbl->slot;
-	}
-	
-	//找最小的connection interval
+		
+	//找最小的Service interval
 	for(Node *node=Head->nextnd; node!=NULL; node=node->nextnd){
 		if(node->SendNode==Head && node->eventinterval<Mininterval){
 			Mininterval=node->eventinterval;
 		}
 	}
 
-	//修正connection interval
-	for(Node *node=Head->nextnd; node!=NULL; node=node->nextnd){
-		if(node->SendNode==Head){
-			node->eventinterval=(Mininterval/TDMASize);
-			//node->eventinterval=node->eventinterval/TDMASize;
-		}
-	}
-
-	//FrameTbl建立
+	//-------------------------------建立FrameTable 並且assign connection interval
 	FrameTbl=new FrameTable;
 	FrameTable* Ftbl=FrameTbl;
 
 	for(TDMATable* tbl=TDMA_Tbl; tbl!=NULL; tbl=tbl->next_tbl){
-		if(tbl->slot==frameid && tbl->n1->SendNode==Head){
+		if(tbl->slot==frameid && tbl->n1->SendNode==Head){ //確認順序 & 送給Master
+			//Init setting
 			Ftbl->id=frameid++;
 			Ftbl->Currentflag=false;
-			Ftbl->Period=tbl->n1->eventinterval;
-			Ftbl->Deadline=tbl->n1->eventinterval;
-			Ftbl->Size=tbl->n1->eventinterval;
-			Ftbl->Utilization=1/nodelevel1;
+			Ftbl->arrival=0;
+			Ftbl->ConnNode= tbl->n1;					//Assign node給此Frame
 
-			Ftbl->ConnNode= tbl->n1;			//指向此Conn Node
-			tbl->n1->eventinterval=Ftbl->Size;	//更新node上的connection interval
+			//Waiting time & period setting
+			Ftbl->Period=tbl->n1->eventinterval;		//Assign Service interval as period
+			Ftbl->Deadline=tbl->n1->eventinterval;		//Assign Service interval as Deadline
+			Ftbl->Size=floor(Mininterval/nodelevel1);	//Service inteval計算connection interval (用Minperiod)
+			Ftbl->ConnNode->eventinterval=Ftbl->Size;	//更新node上的connection interval
+			Ftbl->Utilization=Ftbl->Size/Ftbl->Period;		
 
+			//建立下一個FrameTable
 			Ftbl->next_tbl=new FrameTable;
 			Ftbl->next_tbl->pre_tbl=Ftbl;
 			Ftbl=Ftbl->next_tbl;
@@ -452,12 +421,14 @@ void EventInterval::IntervalDivide(){
 	}
 	Ftbl->pre_tbl->next_tbl=NULL;
 
+	//------------------------------------確認Frame數量不比nodelevel1多
 	if(--frameid>nodelevel1){
 		printf("The Frame size is larger than three, the FrameTable is error\n");
 		system("PAUSE");
 	}
 	
 	//-------------------------------Scan duration 計算
+	/*
 	for(Node* node=Head->nextnd; node!=NULL; node=node->nextnd){
 		devicenum=0;
 		MaxAdvinter=0;
@@ -483,7 +454,7 @@ void EventInterval::IntervalDivide(){
 			node->ScanDuration=0;
 		}
 	}
-
+	*/
 	//---------------------------------Print 出資訊
 	
 	#ifdef _Showlog
@@ -504,24 +475,19 @@ void EventInterval::IntervalDivide(){
 
 
 void EventInterval::EIMA(){
-	bool EIMAEDF_flag=true;	//測試EIMA EDF 上對於inteval上的調整
 
-	double TDMASize=1;	//TDMASIZE
-	double Mininterval=Hyperperiod;	//最小的interval
-	double tmpinterval=Hyperperiod;
-	int devicenum=0;	//device 數量
-	int MaxAdvinter=0;	//對應廣播群中最大的廣播間距
 	short int frameid=1;
 	double min_interval=-1;//最小的interval
 
-	//若有interval大於4秒 (400 unit為10ms)，要往前座scaling所以unit會為
+	//若有interval大於4秒 (400 unit為10ms)，要往前scaling所以unit會為1ms
 	double res_total_u=0;
 	for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd){
 		if(n->eventinterval>400){
 			unit=0.001;		
 		}
 	}
-	//按照Node lifetime做interval校正
+
+	//按照Node avg current做interval校正
 	for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd){
 		double avgcurrent=(((I_notify*Time_notify)+(I_sleep*(n->eventinterval*unit-Time_notify)))/(n->eventinterval*unit));
 		
@@ -544,7 +510,7 @@ void EventInterval::EIMA(){
 		
 		n->avgcurrent=avgcurrent;
 		double lifetime=(1/n->avgcurrent);
-		double weight=1/lifetime;
+		double weight=n->avgcurrent;
 		res_total_u=res_total_u+weight;
 
 		//找最小interval
@@ -555,32 +521,27 @@ void EventInterval::EIMA(){
 		}
 	}
 
-	//-------------------------------Assign給FrameTbl,只有Connection node為3個用
+	//-------------------------------建立FrameTable 並且assign connection interval
 	FrameTbl=new FrameTable;
 	FrameTable* Ftbl=FrameTbl;
 	
 	for(TDMATable* tbl=TDMA_Tbl; tbl!=NULL; tbl=tbl->next_tbl){
 		if(tbl->slot==frameid && tbl->n1->SendNode==Head){
+			//Init setting
 			Ftbl->id=frameid++;
 			Ftbl->Currentflag=false;
 			Ftbl->arrival=0;
-			Ftbl->Period=tbl->n1->eventinterval;
-			Ftbl->Deadline=tbl->n1->eventinterval;
-			/*---------------------------------------
-			---------------------------------------*/
-			
-			//Ftbl->Size=(((1/(BatteryCapacity/(((I_notify*Time_notify)+(I_sleep*(tbl->n1->eventinterval*unit-Time_notify)))/(tbl->n1->eventinterval*unit))))/res_total_u))
-			//			* tbl->n1->eventinterval;
-			//Ftbl->Size=(((1/(BatteryCapacity/ tbl->n1->avgcurrent))/res_total_u))
-			//			* tbl->n1->eventinterval;
-			Ftbl->Size=((tbl->n1->avgcurrent)/res_total_u)
-						* tbl->n1->eventinterval;
-			/*---------------------------------------
-			---------------------------------------*/
-			Ftbl->Utilization=1/nodelevel1;
-			Ftbl->ConnNode= tbl->n1;			//指向此Conn Node
-			tbl->n1->eventinterval=Ftbl->Size;	//更新node上的connection interval
+			Ftbl->ConnNode= tbl->n1;					//Assign node給此Frame
 
+			//Waiting time & period setting
+			Ftbl->Period=tbl->n1->eventinterval;		//Assign Service interval as period
+			Ftbl->Deadline=tbl->n1->eventinterval;		//Assign Service interval as Deadline
+			Ftbl->Size=((tbl->n1->avgcurrent)/res_total_u)
+						* tbl->n1->eventinterval;		//Service inteval計算connection interval
+			Ftbl->ConnNode->eventinterval=Ftbl->Size;	//更新node上的connection interval
+			Ftbl->Utilization=Ftbl->Size/Ftbl->Period;	
+
+			//建立下一個FrameTable
 			Ftbl->next_tbl=new FrameTable;
 			Ftbl->next_tbl->pre_tbl=Ftbl;
 			Ftbl=Ftbl->next_tbl;
@@ -630,13 +591,13 @@ void EventInterval::EIMA(){
 		}
 	}
 	*/
-	unit=0.01;
+
+	//------------------------------------確認Frame數量不比nodelevel1多
 	if(--frameid>nodelevel1){
 		printf("The Frame size is larger than three, the FrameTable is error\n");
 		system("PAUSE");
 	}
-	
-	
+
 	//---------------------------------Print 出資訊
 #ifdef _Showlog
 	for(Node* node=Head->nextnd; node!=NULL; node=node->nextnd){

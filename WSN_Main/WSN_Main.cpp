@@ -27,10 +27,10 @@ const float MIN_Rate=80;
 const float MAX_Rate=960;
 const short int Set=100;
 
-short int readsetting=1;				//是否要讀取本地Setting.txt
+short int readsetting=0;				//是否要讀取本地Setting.txt
 short int Service_interval=1;				//0=>Event, 1=>MEI, 2=>DIF, 3=>Lazy and 4=>Greedy (Min period) <單一node上對varied data調整>
 short int Connection_Interval=2;			//0=>LDC (各service interval除node1level), 1=>Greedy (選 Min interval除node1level), 2=>EIMA <TDMA和connection interval上的校正>
-short int WriReq_Sche=3;		//0=>NPEDF 1=>RR 2=>EIF 3=>Polling <Gateway 通知node傳輸順序>
+short int WriReq_Sche=2;		//0=>NPEDF 1=>RR 2=>EIF 3=>Polling <Gateway 通知node傳輸順序>
 
 bool sche_flag=false;					//是否要測試schedulability
 int EXECBclock=100;						//Lazy Timer (ms)
