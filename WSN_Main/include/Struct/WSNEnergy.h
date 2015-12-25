@@ -7,15 +7,10 @@ extern double I_Tran;	//Transmission 電流 14.2744mA
 extern double Time_Tran;	//Transmission 時間 0.49ms
 extern double BatteryCapacity;
 
-extern double Ie;			//傳輸峰值 電流
-extern double Te;			//傳輸時間
-extern double K;			//Rate power常數
 extern double unit;			//時間單位為10ms
-extern double TotalEnergy;
 extern double parma;
 extern double parmb;
 
 void NodeEnergy();
-double IntervalPower(int ,int );
 void NodeState();
 void Node_EnergyState(Node *);

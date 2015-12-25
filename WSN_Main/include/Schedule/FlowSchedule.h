@@ -21,7 +21,6 @@ void MainSchedule(int ,bool );
 void Schedulability();
 
 void NodeBufferSet(Node *);
-void BLESchedule(int, bool);
 void BLE_EDF(Node *);
 
 void FrameEDFSchedule();

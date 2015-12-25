@@ -473,14 +473,19 @@ void EventInterval::IntervalDivide(){
 	#endif
 }
 
-
+/*==================================
+	Energy Efficeincy Multilple Access
+	
+	weight來決定要取多少percent的
+	service interval
+	(weight的計算用avg current)
+==================================*/
 void EventInterval::EIMA(){
 
 	short int frameid=1;
-	double min_interval=-1;//最小的interval
+	double Sum_weight=0;
 
 	//若有interval大於4秒 (400 unit為10ms)，要往前scaling所以unit會為1ms
-	double res_total_u=0;
 	for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd){
 		if(n->eventinterval>400){
 			unit=0.001;		
@@ -489,36 +494,26 @@ void EventInterval::EIMA(){
 
 	//按照Node avg current做interval校正
 	for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd){
+		
+		//=======================計算Service interval的average current ----------------Weight v1
 		double avgcurrent=(((I_notify*Time_notify)+(I_sleep*(n->eventinterval*unit-Time_notify)))/(n->eventinterval*unit));
 		
-		//=======================
-		
-		double Qc=Hyperperiod*I_notify*Time_notify/(n->eventinterval);
+		//=======================計算Service interval的sequence average current -------Weight v2
+		double Qc=0, Qt=0;
 		double totalcnt=0;
-		double Qt=0;
+		double Seqavgcurrent=0;
+
+		Qc=(Hyperperiod/n->eventinterval)*I_notify*Time_notify;			//單一event所造成的current consumption
 		for(Packet* pkt=n->pkt; pkt!=NULL; pkt=pkt->nodenextpkt){
 			double count=((Hyperperiod/pkt->period)*ceil(pkt->load/payload));
 			totalcnt+=count;
 		}
-		Qt=(totalcnt-(Hyperperiod/n->eventinterval))*I_Tran*Time_Tran;
-		
-		//Qt=0;
-		double Seqavgcurrent=((Qc+Qt)+I_sleep*(Hyperperiod*unit-(Qc/I_notify)-(Qt/I_Tran))) / (Hyperperiod*unit);
-		//avgcurrent=Seqavgcurrent;
-		//Seqavgcurrent=(((I_notify*Time_notify*totalcnt)+(I_sleep*(n->eventinterval*unit-Time_notify*totalcnt)))/(Hyperperiod*unit));
-		//=======================
-		
-		n->avgcurrent=avgcurrent;
-		double lifetime=(1/n->avgcurrent);
-		double weight=n->avgcurrent;
-		res_total_u=res_total_u+weight;
+		Qt=(totalcnt-(Hyperperiod/n->eventinterval))*I_Tran*Time_Tran;	//連傳event所造成的current consumption
+		Seqavgcurrent=((Qc+Qt)+I_sleep*(Hyperperiod*unit-(Qc/I_notify)-(Qt/I_Tran))) / (Hyperperiod*unit);
 
-		//找最小interval
-		if(min_interval==-1){
-			min_interval=n->eventinterval;
-		}else if(n->eventinterval<min_interval){
-			min_interval=n->eventinterval;
-		}
+		//=======================計算total weight
+		n->EIMA_avgcurrent=avgcurrent;
+		Sum_weight=Sum_weight+n->EIMA_avgcurrent;
 	}
 
 	//-------------------------------建立FrameTable 並且assign connection interval
@@ -536,8 +531,8 @@ void EventInterval::EIMA(){
 			//Waiting time & period setting
 			Ftbl->Period=tbl->n1->eventinterval;		//Assign Service interval as period
 			Ftbl->Deadline=tbl->n1->eventinterval;		//Assign Service interval as Deadline
-			Ftbl->Size=((tbl->n1->avgcurrent)/res_total_u)
-						* tbl->n1->eventinterval;		//Service inteval計算connection interval
+			Ftbl->Size=floor(((tbl->n1->EIMA_avgcurrent)/Sum_weight)
+						* tbl->n1->eventinterval);		//Service inteval計算connection interval
 			Ftbl->ConnNode->eventinterval=Ftbl->Size;	//更新node上的connection interval
 			Ftbl->Utilization=Ftbl->Size/Ftbl->Period;	
 
@@ -551,46 +546,39 @@ void EventInterval::EIMA(){
 
 	/*=======================================
 			加入Demand bound
+		找<最小period的size> & <最大size>
+		若<最小period的size> + <最大size>大於 <最小period>
+		每一connection interval調整為<最小period除與2>
 	=======================================*/
-	/*
-	double Minperiod_size=0;
-	double Minperiod_period=-1;
-	double _Maxsize=0;
-	for(FrameTable* Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
-		//Find size of minimum period
-		if(Minperiod_period==-1){
-			Minperiod_period=Ftbl->Period;
-			Minperiod_size=Ftbl->Size;
-		}else{
-			if(Ftbl->Period<Minperiod_period){
+	if(EIMADemand_flag){
+		double Minperiod_size=0;
+		double Minperiod_period=-1;
+		double _Maxsize=0;
+		for(FrameTable* Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
+			//Find size of minimum period
+			if(Minperiod_period==-1){
 				Minperiod_period=Ftbl->Period;
 				Minperiod_size=Ftbl->Size;
+			}else{
+				if(Ftbl->Period<Minperiod_period){
+					Minperiod_period=Ftbl->Period;
+					Minperiod_size=Ftbl->Size;
+				}
+			}
+
+			//Find max size
+			if(Ftbl->Size>_Maxsize){
+				_Maxsize=Ftbl->Size;
 			}
 		}
 
-		//Find max size
-		if(Ftbl->Size>_Maxsize){
-			_Maxsize=Ftbl->Size;
+		if((_Maxsize+Minperiod_size)>Minperiod_period){
+			for(FrameTable* Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
+				Ftbl->Size=Minperiod_period/2;
+				Ftbl->ConnNode->eventinterval=Ftbl->Size;	//更新node上的connection interval
+			}	
 		}
 	}
-
-	if((_Maxsize+Minperiod_size)>Minperiod_period){
-		for(FrameTable* Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
-			Ftbl->Size=Minperiod_period/2;
-			Ftbl->ConnNode->eventinterval=Ftbl->Size;	//更新node上的connection interval
-		}	
-	}
-	*/
-	//-------------------------------------Assign 給 AdvNode使用
-	/*
-	for(FrameTable* Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
-		for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd)	{
-			if(n->SendNode!=Head){
-				
-			}
-		}
-	}
-	*/
 
 	//------------------------------------確認Frame數量不比nodelevel1多
 	if(--frameid>nodelevel1){
@@ -695,29 +683,3 @@ void EventInterval::Rate_TO_Interval(int defaultMinperiod){
 
 }
 
-/*==================================
-		連接順序
-==================================*/
-void EventInterval::ConnectionPriority(){
-	Node* assignnode=NULL;
-	double Max_eventinterval=0;
-	double connorder=0;
-
-	while(Max_eventinterval!=2000000000){
-		Max_eventinterval=2000000000;
-
-		for(Node* node=Head->nextnd; node!=NULL; node=node->nextnd){
-			if(node->SendNode==Head && node->EventTime==-1){
-				if(node->eventinterval<Max_eventinterval){
-					assignnode=node;	
-					Max_eventinterval=node->eventinterval;
-				}
-			}
-		}
-
-		if(assignnode!=NULL){
-			assignnode->EventTime=connorder++;
-		}
-		assignnode=NULL;
-	}
-}

@@ -28,7 +28,7 @@ struct Node{
 	double distanceto_BS;	//¨ìBase station ¶ZÂ÷
 	double energy;
 	double avgenergy;
-	double avgcurrent;
+	double EIMA_avgcurrent;
 	double lifetime;
 	double eventinterval;	//connection interval or advertisement interval
 	double EventTime;

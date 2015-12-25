@@ -12,48 +12,49 @@
 
 using namespace std;
 
+/*==============================================
+				Construct
+==============================================*/
 TDMA::TDMA(){
 	printf("TDMA Object\n");
 }
+
 /*===========================
 		WSN拓鋪
+	>設定各node的傳輸目標
 ===========================*/
 void TDMA::Topology(){
-	Node *TNode=Head->nextnd;
 	double distance=100;
 
 	/*---------------------
-		找最短距離上的
-		相連接
+		找最短距離上的相連接
+		設定node傳輸目標
 	---------------------*/
-	while(TNode!=NULL){
-		//--------------------------Level 1
-		if(TNode->hop==1){
-			TNode->SendNode=Head;
+	for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd){
+		//--------------------------Level 1 (Conn Node)
+		if(n->hop==1){
+			n->SendNode=Head;
 		}
 
-		//--------------------------Level 2~
-		if(TNode->hop!=1){
-			Node *tmp_TNode=Head->nextnd;
-			distance=100;
-			while(tmp_TNode!=NULL){
-				if(tmp_TNode->hop==TNode->hop-1){
-					if(distance>sqrt(pow(TNode->coor_x-tmp_TNode->coor_x,2)+pow(TNode->coor_y-tmp_TNode->coor_y,2))){
-						distance=sqrt(pow(TNode->coor_x-tmp_TNode->coor_x,2)+pow(TNode->coor_y-tmp_TNode->coor_y,2));
-						TNode->SendNode=tmp_TNode;
+		//--------------------------Level 2	(Adv Node)
+		if(n->hop!=1){
+			distance=0;
+			for(Node* cmpNode=Head->nextnd; cmpNode!=NULL; cmpNode=cmpNode->nextnd){
+				if(cmpNode->hop==n->hop-1){ //確認cmpNode為n的前一層
+					if(distance>sqrt(pow(n->coor_x-cmpNode->coor_x,2)+pow(n->coor_y-cmpNode->coor_y,2)) || distance==0){
+						distance=sqrt(pow(n->coor_x-cmpNode->coor_x,2)+pow(n->coor_y-cmpNode->coor_y,2));
+						n->SendNode=cmpNode;
 					}
 				}
-				tmp_TNode=tmp_TNode->nextnd;
 			}
 		}
 
-		TNode=TNode->nextnd;
 	}
-
+	
 	/*---------------------
 		Graph Conflict
 	---------------------*/
-	//=====================建立Edge
+	//=====================建立Edge 放於HeadEdge
 	Edge *tmpedge;
 	HeadEdge=MainEdge;
 	node=Head->nextnd;
@@ -85,7 +86,6 @@ void TDMA::Topology(){
 	MainEdge->next_edge=NULL;
 
 	//=====================建立Conflict Edge
-	//ConflictEdge
 	Edge *MainConflictEdge=ConflictEdge;
 	Node *Childchild_node;
 	node=Head->nextnd;
@@ -265,12 +265,13 @@ void TDMA::NodeColoring(){
 void TDMA::TDMA_Assignment(int method){
 	delete TDMA_Tbl;TDMA_Tbl=NULL;
 	TDMA_Tbl=new TDMATable;
-	node=Head->nextnd;
+
 	int colorid=1;		//等同於slot time
+	int Maxcolor=0;		//最大的color
+
 	TDMATable *tmp_tbl;
 	TDMATable *MainTable=TDMA_Tbl;
 	Edge *N_CEdge=ConflictEdge;
-	int Maxcolor=0;
 
 	//----------------------------------------先找出最大color id
 	node=Head->nextnd;
@@ -282,33 +283,27 @@ void TDMA::TDMA_Assignment(int method){
 
 	//-----------------------------------先分配相同顏色的node 在同一slot上 <只有單一superslot>
 	while(Maxcolor>=colorid){
-
-		node=Head->nextnd;
-		
-		while(node!=NULL){
-			if(node->color == colorid){
+		for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd){
+			if(n->color == colorid){
 				//看是否傳給其他node
-				if(node->SendNode==Head){
-					node->TDMArecv_flag=0;
+				if(n->SendNode==Head){
+					n->TDMArecv_flag=0;
 				}else{
-					node->SendNode->TDMArecv_flag=1;
+					n->SendNode->TDMArecv_flag=1;
 				}
 
-				//assign pair{slot,node}
+				//assign pair{slot,node} (若含有相同color，node可併行處理)
 				TDMA_Tbl->slot=colorid;
-				TDMA_Tbl->n1=node;
-
+				TDMA_Tbl->n1=n;
+				
+				//建立下一Table
 				tmp_tbl=new TDMATable;
 				TDMA_Tbl->next_tbl=tmp_tbl;
 				tmp_tbl->pre_tbl=TDMA_Tbl;
 				TDMA_Tbl=tmp_tbl;
 			}
-
-			node=node->nextnd;
 		}
-		
 		colorid++;
-		node=Head->nextnd;
 	}
 
 	/*===========================================
@@ -370,9 +365,9 @@ void TDMA::TDMA_Assignment(int method){
 		break;
 	}
 
+	//做TDMA Table收尾
 	TDMA_Tbl=TDMA_Tbl->pre_tbl;
 	TDMA_Tbl->next_tbl=NULL;
 
 	TDMA_Tbl=MainTable;
-
 }

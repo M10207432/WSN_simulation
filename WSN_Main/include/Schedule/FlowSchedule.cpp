@@ -579,38 +579,6 @@ void CheckPkt(){
 	}
 }
 
-
-void BLESchedule(int FlowSlot, bool Flow_flag){
-	
-	//-----------------------------------------------------------看NotifyNode是否為NULL,找出TDMA slot下可傳輸的node
-	//Change TDMA Table
-	if(NotifyTable->count<=1){
-		NotifyTable=NotifyTable->next_tbl;
-		if(NotifyTable==NULL)
-			NotifyTable=TDMA_Tbl;
-		NotifyTable->count=ceil(NotifyTable->n1->eventinterval);
-	}
-
-	//Buffer=NULL;
-	for(Node* node=Head->nextnd; node!=NULL;node=node->nextnd){
-		if(NotifyNode==NULL){
-			if(NotifyTable->n1==node && (FlowSlot % int(node->eventinterval))==node->EventTime){
-				NotifyNode=NotifyTable->n1;
-
-				NodeBufferSet(NotifyNode);		//修改好NotifyNode中的Buffer
-				Buffer=NotifyNode->NodeBuffer;
-			}
-		}
-	}
-
-	//-----------------------------------------------------------對NotifyNode做傳輸
-	if(Buffer!=NULL){
-		BLE_EDF(NotifyNode);
-	}
-	
-	NotifyTable->count--;
-}
-
 /*============================================
 		將node上的Buffer做傳輸
 		針對目前的Buffer做傳輸

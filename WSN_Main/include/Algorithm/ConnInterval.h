@@ -4,8 +4,8 @@
 extern double Connectioninterval;
 extern double DIFMinperiod;
 extern short int Rateproposal;
-extern double timeslot;
 extern double Minumum_interval;
+extern bool EIMADemand_flag;
 
 class EventInterval{
 	public:
@@ -35,7 +35,6 @@ class EventInterval{
 				Others
 		------------------------------*/
 		void Rate_TO_Interval(int );
-		void ConnectionPriority();
 		void IntervalReassign();
 };
 

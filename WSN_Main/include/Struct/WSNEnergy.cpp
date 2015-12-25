@@ -62,31 +62,6 @@ void NodeEnergy(){
 	}
 
 }
-/*==========================================
-		計算在此Connection interval下的
-			Power consumption
-==========================================*/
-double IntervalPower(int Pktnum,int interval){
-	if(interval!=0){
-		double Ipeak,Vpeak;
-		double Tc;
-		double power;
-
-		Tc=interval*unit;
-		
-		//Ipeak=(Pktnum*Ie*Te+Isleep*(Tc-Te*Pktnum))/Tc;
-		Ipeak=parma*Pktnum*exp(-parmb*Tc)+I_sleep;
-		
-		Vpeak=Vcc-Ipeak;
-
-		power=Vcc*Ipeak-(Ipeak*Ipeak)*K;
-	
-		//cout<<"T:"<<Timeslot<<" P:"<<power<<endl;
-
-		return power;
-	}else
-		return 0;
-}
 
 /*==========================================
 		計算Node State
