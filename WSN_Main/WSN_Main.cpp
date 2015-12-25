@@ -27,14 +27,15 @@ const float MIN_Rate=80;
 const float MAX_Rate=960;
 const short int Set=100;
 
-short int readsetting=0;				//是否要讀取本地Setting.txt
-short int Rateproposal=4;				//AssignRate()中的方法編號 0=>Event, 1=>MEI, 2=>DIF, 3=>Lazy and 4=>min period<2,3屬於單一node上的調整>
-short int TDMA_Rateproposal=1;			//TDMA和connection interval上的校正 0=>LDC(各除3), 1=>選最小interval除TDMA size, 2=>照lifetime ratio
-short int TDMAscheduleproposal=1;		//Gateway 通知node傳輸順序 0=>做EDF排程 1=>直接照TDMA表做傳輸 2=>EIF 3=>Polling
+short int readsetting=1;				//是否要讀取本地Setting.txt
+short int Service_interval=1;				//0=>Event, 1=>MEI, 2=>DIF, 3=>Lazy and 4=>Greedy (Min period) <單一node上對varied data調整>
+short int Connection_Interval=2;			//0=>LDC (各service interval除node1level), 1=>Greedy (選 Min interval除node1level), 2=>EIMA <TDMA和connection interval上的校正>
+short int WriReq_Sche=3;		//0=>NPEDF 1=>RR 2=>EIF 3=>Polling <Gateway 通知node傳輸順序>
 
 bool sche_flag=false;					//是否要測試schedulability
+int EXECBclock=100;						//Lazy Timer (ms)
 short int TDMAproposal=0;				//TDMA的assign方法 0=>自己的方法(只有一個superslot), 1=>Node base方法 (會再接續加入superslot)
-int EXECBclock=100;						//Lazy Timer
+
 /*=================================
 		Global value
 ==================================*/
@@ -82,23 +83,24 @@ double payload=20;					//payload 為 20bytes
 int Maxbuffersize=4;				//Maxbuffersize 為 4個packets
 double timeslot=10;					//單位時間為10ms
 
-double slotinterval=10;				//Time slot間距為10ms
+double slotinterval=10;				//最短connection interval為10ms
+double Minumum_interval=10;			//最短connection interval為10ms
 double Connectioninterval=0;		//Conneciton inteval 只會在10ms~4000ms
 double totalevent=0;				//Event數量
 bool Meetflag=true;					//看是否meet deadline
+
 /*========================================
 		Power function parameter
 ========================================*/
-double Vcc=3.3;			//BLE 驅動電壓
-
-double I_sleep=0.000001;	//Sleep 電流 1uA
+double Vcc=3.3;					//BLE 驅動電壓
+double I_sleep=0.000001;		//Sleep 電流 1uA
 double Time_sleep=0.001;		//Sleep 時間 1ms (uint time)
-double I_notify=0.008246;	//Notify 電流 8.246mA
+double I_notify=0.008246;		//Notify 電流 8.246mA
 double Time_notify=0.002675;	//Notify 時間 2.675ms
-double I_Tran=0.014274;	//Transmission 電流 14.274mA
-double Time_Tran=0.00049;	//Transmission 時間 0.49ms
-double BatteryCapacity=0.230; //230mAh
-double unit=0.001;		//時間單位為1ms
+double I_Tran=0.014274;			//Transmission 電流 14.274mA
+double Time_Tran=0.00049;		//Transmission 時間 0.49ms
+double BatteryCapacity=0.230;	//230mAh (有其他篇章 是以540mAh <Energy Efficient MAC for Qos Traffic in Wireless Body Area Network)>
+double unit=0.001;				//時間單位為1ms
 
 double Ie=0.07679763;		//傳輸峰值 電流
 double Te=0.0002768;		//傳輸時間
@@ -113,34 +115,39 @@ double parmb=24.4058498;
 EventInterval Interval_obj;
 TDMA TDMA_obj;
 
+/*========================================
+			Main Function
+========================================*/
 int main(int argc, char* argv[]){
 	/*
 	cout<<"Type single node interval(0->Event, 1->MEI):";
-	cin>>Rateproposal;
+	cin>>Service_interval;
 	cout<<"Type TDMA table (0->single superslot, 1->Node base):";
 	cin>>TDMAproposal;
 	cout<<"Type TDMA with interval (0->EIMA, 1->Divide small interval by TDMA size):";
-	cin>>TDMA_Rateproposal;
+	cin>>Connection_Interval;
 	cout<<"Type TDMA schedule (0->EDF, 1->TDMA table):";
-	cin>>TDMAscheduleproposal;
+	cin>>WriReq_Sche;
 	*/	
 
 	for(float U=MIN_Rate; U<=MAX_Rate; U+=inv_r){
 		cout<<"Data Rate: "<<U<<endl;
-
+		
+		//-----------------------------Init setting for new set
 		SetHead->lifetime=0;
 		delete SetNode;SetNode=NULL;
 		Meetcount=0;
 		AverageE=0;
 		totalevent=0;
 
+		////-----------------------------Read setting file
 		CreateFile(U,Set,argv[0]);//開啟WSNGEN 並且建立輸出檔案 (WSNFile.cpp)
 		if(readsetting==1){
-			ExperimentSetting(&Rateproposal, &TDMA_Rateproposal, &TDMAscheduleproposal);//做實驗設定輸出
+			ExperimentSetting(&Service_interval, &Connection_Interval, &WriReq_Sche);//做實驗設定輸出
 		}
+
 		/*===================================================
-							在同一利用率下
-							跑Set數
+					在同一Data Rate下 跑Set數
 		===================================================*/
 		for(short int setnum=0;setnum<Set;setnum++){
 			Meetflag=true;
@@ -151,6 +158,7 @@ int main(int argc, char* argv[]){
 			NotifyNode=NULL;
 			Cycle=NULL;
 			pollingcount=1;
+
 			/*==========================
 				建立Linklist以及
 				GEN的資料放進去
@@ -162,7 +170,7 @@ int main(int argc, char* argv[]){
 				計算Connection interval 
 					& Adv interval
 			==========================*/
-			Interval_obj.Algorithm(Rateproposal);		//安排好各個node上的interval
+			Interval_obj.ServiceInterval_Algorithm(Service_interval);		//安排好各個node上的interval
 
 			/*==========================
 			Topology & TDMA assignment
@@ -174,7 +182,7 @@ int main(int argc, char* argv[]){
 			/*==========================
 			Interval & TDMA adjustment 
 			==========================*/
-			Interval_obj.Interval_TDMA_Algorithm(TDMA_Rateproposal);		//包含TDMA考量,做node上的interval修改 且含有Scan duration 計算
+			Interval_obj.ConnectionInterval_Algorithm(Connection_Interval);		//包含TDMA考量,做node上的interval修改 且含有Scan duration 計算
 			Interval_obj.ConnectionPriority();								//連接順序,設定EventTime
 
 			/*=========================
@@ -183,6 +191,7 @@ int main(int argc, char* argv[]){
 			if(sche_flag){
 				Schedulability();
 			}
+
 			/*==========================
 				EDF scheduling
 				(FlowSchedule.cpp)
@@ -196,7 +205,7 @@ int main(int argc, char* argv[]){
 
 			while(Timeslot<=Hyperperiod){
 				PacketQueue();
-				Schedule(TDMAscheduleproposal,Rateproposal);
+				Schedule(WriReq_Sche,Service_interval);
 				
 				Timeslot++;
 			}

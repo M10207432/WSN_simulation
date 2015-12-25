@@ -17,31 +17,36 @@
 
 using namespace std;
 
+/*==============================================
+				Construct
+==============================================*/
 EventInterval::EventInterval(){
 	printf("Connection Interval Object\n");
 }
+
 /*==============================================
-		選擇需要哪一個 
-		Connection interval 計算方式
+	選擇需要哪一個 Service interval 計算方式
+	(Single node with varied data rate)
 ==============================================*/
-void EventInterval::Algorithm(int Rateproposal){
+void EventInterval::ServiceInterval_Algorithm(int Rateproposal){
 	switch (Rateproposal){
 	case 0:
-		Event();
+		Event();		//每一node connection interval 都為 10ms
 		break;
 	case 1:
-		MEI(NULL);
+		MEI(NULL);		//用Demand bound計算 service interval
 		break;
 	case 2:
-		DIF();
+		DIF();			//用各個pkt區間計算與load計算rate給pkt，會再轉換成service interval
 		break;
 	case 4:
-		Greedy();
+		Greedy();		//用最短minimum period當作service interval
 		break;
 	default:
 		break;
 	}
 
+	//Reset load
 	for(Packet *pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
 		pkt->exeload=pkt->load;
 		pkt->exehop=pkt->hop;
@@ -50,167 +55,113 @@ void EventInterval::Algorithm(int Rateproposal){
 }
 
 /*==============================================
-		選擇需要哪一個 
-		Connection interval 結合TDMA修正方式
+	選擇需要哪一個 Connection interval 方法
+	(Mulitple node with collision constrint)
 ==============================================*/
-void EventInterval::Interval_TDMA_Algorithm(int proposal){
+void EventInterval::ConnectionInterval_Algorithm(int proposal){
 	switch (proposal){
 	case 0:
-		EIMA();
-		break;
+		LDC();				//各個service interval除上node1level作為weight，分配connection interval
+		break;	
 	case 1:
-		IntervalDivide();
+		IntervalDivide();	//用minimum service interval除上node1level作為weight，分配connection interval
 		break;
 	case 2:
-		EIMA_2();
+		EIMA();				//用avg current作為weight，分配connection interval
 		break;
 	default:
 		break;
 	}
 
-	//確認每一node interval不小於1
+	//確認每一node interval不小於10ms
 	for(Node* node=Head->nextnd; node!=NULL; node=node->nextnd){
-		if(node->eventinterval<1){
-			node->eventinterval=1;
+		if(node->eventinterval<Minumum_interval){
+			node->eventinterval=Minumum_interval;
 		}
 	}
 }
 
 /*==============================================
-		每一node connection interval 都為 1
+		每一node connection interval 都為 10ms
 ==============================================*/
 void EventInterval::Event(){
-	node=Head->nextnd;
-	while(node!=NULL){
-		node->eventinterval=1;
-		node=node->nextnd;
+	for (Node* n=Head->nextnd; n!=NULL; n=n->nextnd){
+		node->eventinterval=Minumum_interval;
 	}
 }
-/*==============================================
-(小於兩倍Minperiod的pkt size)	->Minsize
-	(最大load的pkt size)			->Maxsize
 
-	若(2*Minsize+Maxsize)大於兩倍Buffersize
-		Connection interval為Minperiod/2
-	否
-		依照間隔buffersize做計算
+/*==============================================
+	Multiple event Energy Efficient Interval
+
+	>先排好PacketQueue 給pkt
+	>分別計算在Tslot之前的Demand_pkt Supply_pkt
+	>Update Tslot
 ==============================================*/
 void EventInterval::MEI(Node * MEINode){
-	Packet *TSBpktQ=ReadyQ;
-	Packet *TSBpkt=Head->nextnd->pkt;
-	double Tc=0;
-	
+
+	double Tc=0;			//最後得出的service interval
+	double Tslot=0;			//基準測試時間點(比較Demand_pkt v.s. Supply_pkt)			
+	double Demand_pkt=0;	//在Tslot之前所需的pkt數量
+	double Supply_pkt=0;	//在Tslot之前系統提供的pkt數量
+	bool doneflag=false;	//判斷node的所有pkt以計算完畢
+
 	/*------------------------------------------
 		先做好所有Conn/Adv Node
 		上的connection/advertisement interval
 	------------------------------------------*/
 	PacketQueue();		//先排Ready Queue
-	Node *TSBnode=Head->nextnd;
-	while(TSBnode!=NULL){
-		Packet *TSBpkt=TSBnode->pktQueue;
-
+	for (Node* n=Head->nextnd; n!=NULL; n=n->nextnd){
+		
+		//========================Init
+		
+		Packet *pkt=n->pktQueue;	//pkt已排序好 (按照deadline)
 		if(MEINode!=NULL){
-			TSBpkt=MEINode->pktQueue;
+			pkt=MEINode->pktQueue;	//根據某node設定
 		}
-		int nodehop=TSBnode->hop;
-		double Totalsize=0;
-		double PacketSize=0;
-		double totalevent=0;
-		double Tslot=0;
-		bool doneflag=false;
 
-		//======================找Minperiod, 設定為Tc init
-		Tc=TSBpkt->period;
+		Tslot=0;
+		Demand_pkt=0;
+		Supply_pkt=0;
+		Tc=pkt->period;		//找Minperiod, 設定為Tc init
+		Tslot=pkt->period;	//找Minperiod, 設定為Tslot init
+		doneflag=false;
 
-		//======================分析每一period下, 是否能meet deadline
-		Tslot=TSBpkt->period;
-	
+		//========================循序增加Tslot
 		while(doneflag!=true){
-			Totalsize=0;
+			Demand_pkt=0;
 
-			//算出所需buffer量 (Packet 數量 --> Totalsize)
-			TSBpkt=TSBnode->pktQueue;
-			while(TSBpkt->period <= Tslot){
-				Totalsize=Totalsize+(ceil(TSBpkt->load/payload)*ceil(Tslot/TSBpkt->period));	
-				TSBpkt=TSBpkt->nodereadynextpkt;
-				if(TSBpkt==NULL)
+			//算出在Tslot之前所需的pkt數量 (Packet 數量 --> Demand_pkt)----Step1
+			pkt=n->pktQueue;
+			while(pkt->period <= Tslot){
+				Demand_pkt=Demand_pkt+(ceil(pkt->load/payload)*ceil(Tslot/pkt->period));	
+				pkt=pkt->nodereadynextpkt;
+				if(pkt==NULL)
 					break;
 			}
 
-			//計算需要的event數量，反推所需buffer量 (解決Hop不連續上的問題)
-			if(nodehop>1){
-				totalevent=ceil(Totalsize/Maxbuffersize);
-				Totalsize=(totalevent*Maxbuffersize)*nodehop;
-			}
-
-			//計算Connection interval
-			PacketSize=floor(Tslot/Tc)*double(Maxbuffersize);
+			//計算在Tslot之前所提供的Service interval----------------------Step2
+			Supply_pkt=floor(Tslot/Tc)*double(Maxbuffersize);
 			
-			while(Totalsize > PacketSize){
+			//比較Demand_pkt & Supply_pkt---------------------------------Step3
+			while(Demand_pkt > Supply_pkt){
 				Tc--;
-				PacketSize=floor(Tslot/Tc)*double(Maxbuffersize);
+				Supply_pkt=floor(Tslot/Tc)*double(Maxbuffersize);
 			}
 			
-			//更新Time slot
-			if(TSBpkt!=NULL){
-				Tslot=TSBpkt->period;
+			//更新Time slot-----------------------------------------------Step4
+			if(pkt!=NULL){
+				Tslot=pkt->period;
 			}else{
 				doneflag=true;
 			}
 		}	
 
-		TSBnode->eventinterval=Tc;
-		TSBnode=TSBnode->nextnd;
+		//已經計算完此node所有pkt，assign Service Interval to node
+		n->eventinterval=Tc;
 
+		//因是根據某一node做計算，所以只需計算一次
 		if(MEINode!=NULL){
-			break;
-		}
-	}
-}
-
-/*=====================================
-	對需要Scan 的Conn Node
-	做Scan duration 計算，以及Tc重新計算
-=====================================*/
-
-void EventInterval::IntervalReassign(){
-	double MaxAdvinter=0;	//最長廣播間距
-	short int devicenum=0;	//Adv Device 數量
-
-	for(Node *node=Head->nextnd; node!=NULL; node=node->nextnd){
-		if(node->SendNode==Head){
-			MaxAdvinter=0;
-			devicenum=0;
-
-			//先找Device 數量 & 對應最大廣播間距
-			for(Node *AdvNode=Head->nextnd; AdvNode!=NULL; AdvNode=AdvNode->nextnd){
-				if(node==AdvNode->SendNode){
-					AdvNode->pkt->node=node;	//主要是要將所屬node轉為對應Conn Node，目的為在PacketQueue中 要做node上readynextpkt安排，且MEI重新計算
-												//做完之後要設定回來 (Node上的nodenextpkt並未改變)
-					devicenum++;			
-					if(AdvNode->eventinterval>MaxAdvinter){
-						MaxAdvinter=AdvNode->eventinterval;
-					}
-				}
-			}
-
-			if(devicenum>0){
-				//計算Scan duration (int ScanWin, int ScanInter, int AdvInter, int device)
-				node->ScanDuration=node->SCAN_Compute(	node->ScanWin,
-																											node->ScanInter,
-																											MaxAdvinter,
-																											devicenum);
-				node->EXEScanDuration=node->ScanDuration;
-				node->ScanFlag=false;
-
-				MEI(node);
-
-				for(Node *AdvNode=Head->nextnd; AdvNode!=NULL; AdvNode=AdvNode->nextnd){
-					if(node==AdvNode->SendNode){
-						AdvNode->pkt->node=AdvNode;
-					}
-				}
-			}
+			break;			
 		}
 	}
 }
@@ -343,38 +294,30 @@ void EventInterval::DIF(){
 	delete []DIFpacket;
 }
 
-void EventInterval::Rate_TO_Interval(int defaultMinperiod){
-	//判斷是否需要改變Tc
-	double exconnectioninterval=Connectioninterval;
-	Connectioninterval=0;
-	Packet *tmppkt=Buffer->pkt;
-	double Allload=Buffer->load;
-	double Maxrate=0;
-	double Minperiod;
 
-	while(tmppkt!=NULL){
-		if(tmppkt->rate > Maxrate){
-			if(tmppkt->exeload <= payload){
-				Connectioninterval=Connectioninterval+(tmppkt->exeload/tmppkt->rate);
-				Allload=Allload-tmppkt->exeload;
+/*============================================
+				Greedy
+		找出node中最小period，
+		將此period 視為service interval
+============================================*/
+void EventInterval::Greedy(){
+	for(Node *n=Head->nextnd; n!=NULL; n=n->nextnd){
+
+		//Find the minimum period
+		Packet* Minpkt=NULL;
+		for(Packet* pkt=n->pkt; pkt!=NULL; pkt=pkt->nodenextpkt){
+			if(Minpkt==NULL){
+				Minpkt=pkt;
 			}else{
-				Connectioninterval=Connectioninterval+(payload/tmppkt->rate);
-				Allload=Allload-payload;
+				if(Minpkt->period > pkt->period){
+					Minpkt=pkt;
+				}
 			}
 		}
-		tmppkt=tmppkt->buffernextpkt;
-	}
-		
-	if(Connectioninterval<1){
-		Connectioninterval=exconnectioninterval;//設定為之前的interval
-	}else{
-		Connectioninterval=floor(Connectioninterval);
-	}
 
-	//判斷Connectioninterval是否大於Minperiod
-	if(Connectioninterval>defaultMinperiod)
-		Connectioninterval=defaultMinperiod;
-
+		//Assign Service interval
+		n->eventinterval=Minpkt->period;
+	}
 }
 
 /*==============================================
@@ -384,7 +327,7 @@ void EventInterval::Rate_TO_Interval(int defaultMinperiod){
 		=>會修正各node上的interval
 		=>Assign好各自SCAN duration
 ==============================================*/
-void EventInterval::EIMA(){
+void EventInterval::LDC(){
 	bool EIMAEDF_flag=true;	//測試EIMA EDF 上對於inteval上的調整
 
 	double TDMASize=1;	//TDMASIZE
@@ -558,34 +501,9 @@ void EventInterval::IntervalDivide(){
 	}
 	#endif
 }
-/*==================================
-		連接順序
-==================================*/
-void EventInterval::ConnectionPriority(){
-	Node* assignnode=NULL;
-	double Max_eventinterval=0;
-	double connorder=0;
 
-	while(Max_eventinterval!=2000000000){
-		Max_eventinterval=2000000000;
 
-		for(Node* node=Head->nextnd; node!=NULL; node=node->nextnd){
-			if(node->SendNode==Head && node->EventTime==-1){
-				if(node->eventinterval<Max_eventinterval){
-					assignnode=node;	
-					Max_eventinterval=node->eventinterval;
-				}
-			}
-		}
-
-		if(assignnode!=NULL){
-			assignnode->EventTime=connorder++;
-		}
-		assignnode=NULL;
-	}
-}
-
-void EventInterval::EIMA_2(){
+void EventInterval::EIMA(){
 	bool EIMAEDF_flag=true;	//測試EIMA EDF 上對於inteval上的調整
 
 	double TDMASize=1;	//TDMASIZE
@@ -736,20 +654,109 @@ void EventInterval::EIMA_2(){
 #endif
 }
 
-void EventInterval::Greedy(){
-	for(Node *n=Head->nextnd; n!=NULL; n=n->nextnd){
-		//find the minimum period
-		Packet* Minpkt=NULL;
-		for(Packet* pkt=n->pkt; pkt!=NULL; pkt=pkt->nodenextpkt){
-			if(Minpkt==NULL){
-				Minpkt=pkt;
+/*=====================================
+	對需要Scan 的Conn Node
+	做Scan duration 計算，以及Tc重新計算
+=====================================*/
+void EventInterval::IntervalReassign(){
+	double MaxAdvinter=0;	//最長廣播間距
+	short int devicenum=0;	//Adv Device 數量
+
+	for(Node *node=Head->nextnd; node!=NULL; node=node->nextnd){
+		if(node->SendNode==Head){
+			MaxAdvinter=0;
+			devicenum=0;
+
+			//先找Device 數量 & 對應最大廣播間距
+			for(Node *AdvNode=Head->nextnd; AdvNode!=NULL; AdvNode=AdvNode->nextnd){
+				if(node==AdvNode->SendNode){
+					AdvNode->pkt->node=node;	//主要是要將所屬node轉為對應Conn Node，目的為在PacketQueue中 要做node上readynextpkt安排，且MEI重新計算
+												//做完之後要設定回來 (Node上的nodenextpkt並未改變)
+					devicenum++;			
+					if(AdvNode->eventinterval>MaxAdvinter){
+						MaxAdvinter=AdvNode->eventinterval;
+					}
+				}
+			}
+
+			if(devicenum>0){
+				//計算Scan duration (int ScanWin, int ScanInter, int AdvInter, int device)
+				node->ScanDuration=node->SCAN_Compute(	node->ScanWin,
+														node->ScanInter,
+														MaxAdvinter,
+														devicenum);
+				node->EXEScanDuration=node->ScanDuration;
+				node->ScanFlag=false;
+
+				MEI(node);
+
+				for(Node *AdvNode=Head->nextnd; AdvNode!=NULL; AdvNode=AdvNode->nextnd){
+					if(node==AdvNode->SendNode){
+						AdvNode->pkt->node=AdvNode;
+					}
+				}
+			}
+		}
+	}
+}
+
+void EventInterval::Rate_TO_Interval(int defaultMinperiod){
+	//判斷是否需要改變Service interval
+	double exconnectioninterval=Connectioninterval;
+	Connectioninterval=0;
+	Packet *tmppkt=Buffer->pkt;
+	double Allload=Buffer->load;
+	double Maxrate=0;
+	double Minperiod;
+
+	while(tmppkt!=NULL){
+		if(tmppkt->rate > Maxrate){
+			if(tmppkt->exeload <= payload){
+				Connectioninterval=Connectioninterval+(tmppkt->exeload/tmppkt->rate);
+				Allload=Allload-tmppkt->exeload;
 			}else{
-				if(Minpkt->period > pkt->period){
-					Minpkt=pkt;
+				Connectioninterval=Connectioninterval+(payload/tmppkt->rate);
+				Allload=Allload-payload;
+			}
+		}
+		tmppkt=tmppkt->buffernextpkt;
+	}
+		
+	if(Connectioninterval<1){
+		Connectioninterval=exconnectioninterval;//設定為之前的interval
+	}else{
+		Connectioninterval=floor(Connectioninterval);
+	}
+
+	//判斷Connectioninterval是否大於Minperiod
+	if(Connectioninterval>defaultMinperiod)
+		Connectioninterval=defaultMinperiod;
+
+}
+
+/*==================================
+		連接順序
+==================================*/
+void EventInterval::ConnectionPriority(){
+	Node* assignnode=NULL;
+	double Max_eventinterval=0;
+	double connorder=0;
+
+	while(Max_eventinterval!=2000000000){
+		Max_eventinterval=2000000000;
+
+		for(Node* node=Head->nextnd; node!=NULL; node=node->nextnd){
+			if(node->SendNode==Head && node->EventTime==-1){
+				if(node->eventinterval<Max_eventinterval){
+					assignnode=node;	
+					Max_eventinterval=node->eventinterval;
 				}
 			}
 		}
 
-		n->eventinterval=Minpkt->period;
+		if(assignnode!=NULL){
+			assignnode->EventTime=connorder++;
+		}
+		assignnode=NULL;
 	}
 }

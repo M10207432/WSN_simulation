@@ -55,13 +55,14 @@ void NodeLocation();	//だ皌竊翴竚
 /*=================================
 		Global value
 ==================================*/
-double period[]={500,500,500};
+//double period[]={200,500,1000};
+double period[]={200,500,800};
 //double period[]={1000,2000,3000};
-double Hyperperiod=10000;
+double Hyperperiod=24000;
 double periodrange;			//period  rand畉禯
 const int Level1_Nodenum = 3;		//材糷Node计秖<ConnNode>
 const int Level2_Nodenum = 0;		//材糷Node计秖<AdvNode>
-const int pktnum=4;				//–node计
+const int pktnum=2;				//–node计
 const short int Set=100;			//–ノSet计
 double Initrate=80;					//秨﹍GENrate
 double inv_r=80;							//rate畉禯
@@ -417,11 +418,16 @@ void create_varied(double rate){
 					p=rand()%900+100;
 				}else{
 					if(n->period==200){
-						p=(rand()%200)+(n->period-100);	//100~300
+						p=(rand()%200)+(n->period-50);	//150~300
 					}else if(n->period==500){
 						p=(rand()%400)+(n->period-200);	//300~700
 					}else if(n->period==1000){
 						p=(rand()%400)+(n->period-200);	//800~1200
+					}else if (n->period==350){
+						p=(rand()%100)+(n->period);	//350
+					}else if (n->period==800){
+						p=(rand()%200)+(n->period-100);	//700-1000
+						//p=n->period;
 					}else{
 						p=Hyperperiod;
 					}
