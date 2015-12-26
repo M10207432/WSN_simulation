@@ -6,13 +6,26 @@ import wx.media
 import wx.lib.agw.aquabutton as AB
 import time
 import random
+import pprint
 
+#===============================
+import matplotlib
+matplotlib.use('WXAgg')
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_wxagg import \
+    FigureCanvasWxAgg as FigCanvas, \
+    NavigationToolbar2WxAgg as NavigationToolbar
+import numpy as np
+import pylab
+
+#===============================
 import BLE_Scheduler as BLESche
+import wx_mpl_dynamic_graph as CanvasDraw
 from threading import Thread
 
 REFRESH_INTERVAL_MS = 100
 
-class IOT_Interface(wx.Frame):
+class IOT_Interface(CanvasDraw.GraphFrame):
     def __init__(self):
         '''=========================
                 Init Parameter
@@ -28,12 +41,12 @@ class IOT_Interface(wx.Frame):
         self.next_ypos=550
         self.buy_xpos=200
         self.buy_ypos=600
-
+        self.data=[]
         '''=========================
                 Set Up
         ========================='''
         wx.Frame.__init__(self, parent=None, title="Gateway monitor", size=(self.panel_xsize, self.panel_ysize))
-        self.panel= MainPanel(self)
+        self.panel=wx.Panel(self)
         self.picture=None
         self.clock=None
         self.connect=False
@@ -56,25 +69,65 @@ class IOT_Interface(wx.Frame):
         
     def Component(self):
         panel=self.panel
-
+        self.init_plot()
+        self.canvas = FigCanvas(self.panel, -1, self.fig)
+        
         '''==========================
                 BUTTON
         =========================='''
-        
         #--------------------TextCtrl
         wx.StaticText(parent=panel, label=":", pos=(950,32))
         
         #--------------------Connection & Disconnection Btn
-        self.conn_btn=wx.Button(parent=panel, label="Conn", pos=(50,800))#size=(size_x, size_y)
+        self.conn_btn=wx.Button(parent=panel, label="Conn", pos=(600,900))#size=(size_x, size_y)
         self.Bind(wx.EVT_BUTTON, self.ConnFunc, self.conn_btn)
 
-        self.disconn_btn=wx.Button(parent=panel, label="Disconn", pos=(50,850))#size=(size_x, size_y)
+        self.disconn_btn=wx.Button(parent=panel, label="Disconn", pos=(700,900))#size=(size_x, size_y)
         self.Bind(wx.EVT_BUTTON, self.DisConnFunc, self.disconn_btn)
 
         #--------------------Start
-        self.Start_btn=wx.Button(parent=panel, label="Start", pos=(50,900))#size=(size_x, size_y)
+        self.Start_btn=wx.Button(parent=panel, label="Start", pos=(800,900))#size=(size_x, size_y)
         self.Bind(wx.EVT_BUTTON, self.StartSchedule, self.Start_btn)
-            
+        
+        #--------------------Box
+        self.xmin_control = CanvasDraw.BoundControlBox(self.panel, -1, "X min", 0)
+        self.xmax_control = CanvasDraw.BoundControlBox(self.panel, -1, "X max", 50)
+        self.ymin_control = CanvasDraw.BoundControlBox(self.panel, -1, "Y min", 0)
+        self.ymax_control = CanvasDraw.BoundControlBox(self.panel, -1, "Y max", 100)
+                
+        self.cb_grid = wx.CheckBox(self.panel, -1, 
+            "Show Grid",
+            style=wx.ALIGN_RIGHT)
+        self.Bind(wx.EVT_CHECKBOX, self.on_cb_grid, self.cb_grid)
+        self.cb_grid.SetValue(True)
+        
+        self.cb_xlab = wx.CheckBox(self.panel, -1, 
+            "Show X labels",
+            style=wx.ALIGN_RIGHT)
+        self.Bind(wx.EVT_CHECKBOX, self.on_cb_xlab, self.cb_xlab)
+        self.cb_xlab.SetValue(True)
+        
+        self.hbox1 = wx.BoxSizer(wx.HORIZONTAL)
+        self.hbox1.AddSpacer(20)
+        self.hbox1.Add(self.cb_grid, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
+        self.hbox1.AddSpacer(10)
+        self.hbox1.Add(self.cb_xlab, border=5, flag=wx.ALL | wx.ALIGN_CENTER_VERTICAL)
+        
+        self.hbox2 = wx.BoxSizer(wx.HORIZONTAL)
+        self.hbox2.Add(self.xmin_control, border=5, flag=wx.ALL)
+        self.hbox2.Add(self.xmax_control, border=5, flag=wx.ALL)
+        self.hbox2.AddSpacer(24)
+        self.hbox2.Add(self.ymin_control, border=5, flag=wx.ALL)
+        self.hbox2.Add(self.ymax_control, border=5, flag=wx.ALL)
+        
+        self.vbox = wx.BoxSizer(wx.VERTICAL)
+        self.vbox.Add(self.canvas, 1, flag=wx.LEFT | wx.TOP | wx.GROW)        
+        self.vbox.Add(self.hbox1, 0, flag=wx.ALIGN_LEFT | wx.TOP)
+        self.vbox.Add(self.hbox2, 0, flag=wx.ALIGN_LEFT | wx.TOP)
+        
+        self.panel.SetSizer(self.vbox)
+        self.vbox.Fit(self)
+        
     def ConnFunc(self, event):
         if self.t.is_alive():
             print "Alive"
@@ -140,14 +193,20 @@ class IOT_Interface(wx.Frame):
         self.draw_plot()
         '''
         try:
-            print self.BLESche.RecvPkt
+            while len(self.BLESche.RecvPkt)>0:
+                #print "Frame"
+                #print self.BLESche.RecvPkt
+                self.data.append(self.BLESche.RecvPkt[0])
+                self.draw_plot()
+                #print "end"
+                self.BLESche.RecvPkt.pop()
         except:
             pass
         
         
     def onClose(self):
         self.Close()
-        
+     
 class MainPanel(wx.Panel):
     def __init__(self, parent):
         
@@ -165,9 +224,7 @@ class MainPanel(wx.Panel):
             dc = wx.ClientDC(self)
             rect = self.GetUpdateRegion().GetBox()
             dc.SetClippingRect(rect)
-        dc.Clear()
-        
-        
+        dc.Clear() 
         
 class Img_MainPanel(wx.Panel):
     def __init__(self, parent, BGimg):

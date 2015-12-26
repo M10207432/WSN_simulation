@@ -1,0 +1,10 @@
+Metadata-Version: 1.0
+Name: pyble
+Version: 0.02
+Summary: Bluetooth Low Energy Python module based on TI cc2540
+Home-page: https://github.com/mzxu/pyble
+Author: Mingze
+Author-email: mzxu@outlook.com
+License: MIT
+Description: Bluetooth Low Energy Python module based on TI cc2540.
+Platform: UNKNOWN

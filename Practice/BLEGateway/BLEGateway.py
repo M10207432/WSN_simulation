@@ -39,6 +39,35 @@ Frame=[ {"Exe":0.1,"Period":0.150,"Deadline":0.15,'Arrival':0,'id':1},
         {"Exe":0.1,"Period":0.50,"Deadline":0.5,'Arrival':0,'id':2},
         {"Exe":0.1,"Period":1.0,"Deadline":1.0,'Arrival':0,'id':3}]
 '''
+Nodeinfo=[[200,200],
+          [400,400],
+          [800,800],
+          {"meet":0, "miss":0,"meetratio":0}]
+'''
+Frame=[{"Exe":0.05,"Period":0.200,"Deadline":0.200,'Arrival':0,'id':1},
+        {"Exe":0.05,"Period":0.400,"Deadline":0.400,'Arrival':0,'id':2},
+        {"Exe":0.05,"Period":0.800,"Deadline":0.800,'Arrival':0,'id':3}]
+'''
+
+Frame=[{"Exe":0.1,"Period":0.200,"Deadline":0.200,'Arrival':0,'id':1},
+        {"Exe":0.1,"Period":0.400,"Deadline":0.400,'Arrival':0,'id':2},
+        {"Exe":0.1,"Period":0.800,"Deadline":0.800,'Arrival':0,'id':3}]
+
+'''
+Nodeinfo=[[200,200],
+          [350,350],
+          [500,500],
+          {"meet":0, "miss":0,"meetratio":0}]
+Frame=[{"Exe":0.05,"Period":0.200,"Deadline":0.200,'Arrival':0,'id':1},
+        {"Exe":0.05,"Period":0.350,"Deadline":0.350,'Arrival':0,'id':2},
+        {"Exe":0.05,"Period":0.500,"Deadline":0.500,'Arrival':0,'id':3}]
+'''
+'''
+Frame=[{"Exe":0.1,"Period":0.200,"Deadline":0.200,'Arrival':0,'id':1},
+        {"Exe":0.1,"Period":0.350,"Deadline":0.350,'Arrival':0,'id':2},
+        {"Exe":0.1,"Period":0.500,"Deadline":0.500,'Arrival':0,'id':3}]
+'''
+'''
 Nodeinfo=[[150,500],
           [500,1000],
           [1000,1000],
@@ -47,6 +76,7 @@ Nodeinfo=[[150,500],
 Frame=[{"Exe":0.05,"Period":0.150,"Deadline":0.15,'Arrival':0,'id':1},
         {"Exe":0.05,"Period":0.50,"Deadline":0.5,'Arrival':0,'id':2},
         {"Exe":0.05,"Period":1.0,"Deadline":1.0,'Arrival':0,'id':3}]
+'''
 '''
 Frame=[{"Exe":0.33,"Period":1,"Deadline":1,'Arrival':0,'id':1},
         {"Exe":0.66,"Period":2,"Deadline":2,'Arrival':0,'id':2},

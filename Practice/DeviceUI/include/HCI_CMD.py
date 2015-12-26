@@ -225,15 +225,15 @@ def ParseBLERSP(result,RecvPkt):
         print "GAP_EstablishLink","ADDR:",RSPDict['Dev Addr'],"Conn Handle:",RSPDict['Conn Handle']
     
     if RSPDict['Event']=="ATT_HandleValueNotification":
-        '''
+        
         print datetime.datetime.now().strftime("%H:%M:%S.%f"),"Conn:",RSPDict['Conn Handle'],"Handle:",RSPDict['Handle']," Values:",RSPDict['Values'],
         print " ",int(RSPDict['Values'][30:38],16)," ",int(RSPDict['Values'][22:30],16),
         print " ",int(RSPDict['Values'][22:30],16)-int(RSPDict['Values'][30:38],16)
-        '''
         
-        Pkt=int(RSPDict['Values'][22:30],16)-int(RSPDict['Values'][30:38],16)
+        
+        Pkt=int(RSPDict['Values'][22:30],16)
         RecvPkt.append(Pkt)
-        print RecvPkt
+        
         '''
         if RSPDict['Handle'].find("9")>0:
             TDMAState[0]=True

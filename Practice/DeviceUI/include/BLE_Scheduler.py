@@ -35,14 +35,12 @@ class Scheduler():
         global BLEBaudrate
         global RecvPkt
         
-        
         self.serial_port = serial.Serial(port=BLEport, baudrate=BLEBaudrate)
         self.ble_builder = GW_B.GW_Builder(self.serial_port)
         self.ble_parser = GW_P.GW_BLEParser(self.serial_port, callback=self.analyse_packet)    #(analyse_packet) callback(packet, dictionary)
         self.shutdownflag=False
         self.RecvPkt=RecvPkt
         print "BLE Builder Init Done"
-        
         
         '''
         if Schepropose==1:
@@ -51,7 +49,6 @@ class Scheduler():
             self.ble_parser.stop()
         '''
     def run(self):
-        self.RecvPkt=[]
         Frame=[{"Exe":0.5,"Period":1,"Deadline":1,'Arrival':0,'id':1},
                {"Exe":0.5,"Period":2,"Deadline":2,'Arrival':0,'id':2},
                {"Exe":0.5,"Period":3,"Deadline":3,'Arrival':0,'id':3}]
@@ -66,7 +63,7 @@ class Scheduler():
             
             print_output(self.BLECMD("fe09", peer_addr="\x02\xC2\x36\x29\x6A\xBC"))#CC2540EM
             time.sleep(1)
-           
+            
             I=raw_input("PAUSE")
             #================================================GATT_WriteCharValue
             print datetime.datetime.now().strftime("%H:%M:%S.%f")," Start"

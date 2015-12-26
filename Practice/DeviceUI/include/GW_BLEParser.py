@@ -44,7 +44,7 @@ class GW_BLEParser(threading.Thread):
         """
         while True:
             try:
-                R=self._callback(self.wait_read())
+                self._callback(self.wait_read())
             except ThreadQuitException:
                 break
 
