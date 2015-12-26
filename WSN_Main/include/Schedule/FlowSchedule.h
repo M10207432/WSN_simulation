@@ -21,6 +21,7 @@ extern short int pollingcount;
 void PacketQueue();
 void NodeBufferSet(Node *);
 void BLE_EDF(Node *);
+void Write_Request();
 
 /*=====================
 	Write-Request¤èªk

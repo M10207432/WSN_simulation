@@ -44,6 +44,8 @@ void Schedule(int propose, int intervalpropose){
 			Polling();
 			break;
 		}
+
+		Write_Request();
 	}else{
 		SingleNodeSchedule(intervalpropose);
 	}
@@ -476,10 +478,6 @@ void NodeBufferSet(Node * SettingNode){
 FrameTable *Work_tbl=NULL;
 void NPEDF(){
 	
-	TDMATable *table=TDMA_Tbl;
-	Node *node=Head->nextnd;
-	bool NotifyFlag=true;		//確認傳輸只能一次(ConnSet)
-	
 	/*----------------------------------------------
 		Head對ConnNode下指令，在計算後的FrameSize內
 		FrameSize若計算完畢立即換下一TDMA的frame做事
@@ -525,93 +523,6 @@ void NPEDF(){
 		}
 	}
 
-	/*----------------------------------------------
-		ConnSet中被通知的Node做對應傳輸或SCAN
-		Notify & Scan可同時運作
-
-		node是否有event arrival		(node->EvtArrival)
-		node是否有被通知				(Head->RecvNode, call BLE_EDF(node))
-		node energy consumption		(node->State)
-	----------------------------------------------*/
-	for(Node *n=Head->nextnd; n!=NULL; n=n->nextnd){
-		
-		//-------------------State為Transmission, 只在event arrival 時才做Buffer規劃
-		if(Timeslot % int(n->eventinterval)==0){
-			NodeBufferSet(n);		//整理好n中的NodeBuffer
-			n->EvtArrival =true;	//對此node設定EvtArrival
-		}else{
-			n->EvtArrival =false;
-		}
-
-		//-------------------進行傳輸 [有被通知(node->State=="Transmission") 且 event arrival(node->EvtArrival)]
-		if(n->State!="Sleep"){
-			bool eventarrival=false;
-			
-			if(n->EvtArrival && n->State=="Notify" && (Head->RecvNode==NULL || Head->RecvNode==n)){
-				Head->RecvNode=n;	//Head->RecvNode切換
-
-
-				/******************************************
-				******************************************/
-				/*
-				//先做Scan pkt的傳輸
-				for(Node *AdvNode=Head->nextnd; AdvNode!=NULL; AdvNode=AdvNode->nextnd){
-					if(AdvNode->SendNode==n && AdvNode->EXEScanDuration<0 && AdvNode->ScanFlag){
-						
-						n->NodeBuffer->load=n->NodeBuffer->load-payload;
-						AdvNode->pkt->deadline+=AdvNode->pkt->period;
-
-						//判斷是否miss deadline
-						if((Timeslot)>=AdvNode->pkt->deadline){
-#ifdef _ShowLog
-								cout<<"(PKT"<<AdvNode->pkt->id<<" Miss deadline"<<" Deadline "<<AdvNode->pkt->deadline<<")";
-#endif
-								Schdulefile<<"(PKT"<<AdvNode->pkt->id<<" Miss deadline"<<" Deadline "<<AdvNode->pkt->deadline<<")";
-
-								Meetflag=false;
-							//system("PAUSE");
-						}
-
-						AdvNode->ScanFlag=false;
-						AdvNode->EXEScanDuration=AdvNode->ScanDuration;
-						AdvNode->pkt->arrival=AdvNode->pkt->deadline;
-						AdvNode->pkt->deadline=AdvNode->pkt->deadline+AdvNode->pkt->period;
-				
-					}
-				}
-				*/
-				/******************************************
-				******************************************/
-
-				n->State="Transmission";
-				Timeslot=Timeslot+2;
-				Head->FrameSize=Head->FrameSize-2;
-			}
-			
-			//-------------------進行傳輸 (Head->RecvNode要確認目前沒node或為當前node)
-			if(Head->RecvNode==n && NotifyFlag){
-				BLE_EDF(n);				//對n做傳輸
-
-				if(n->NodeBuffer->load==0){
-					Head->RecvNode=NULL;
-				}
-				
-				NotifyFlag=false;
-			}
-
-			//-------------------State為Scan
-			if(n->State=="Scan"){
-				//n->ScanDuration--;
-			}
-		}
-
-		//---------------------------------------Power consumption & State切換
-		Node_EnergyState(n);	//計算n的Energy
-		if(n->NodeBuffer->load==0 && n->State=="Transmission"){
-			n->State="Sleep";
-		}
-	}
-
 }
 
 /***********************************************
@@ -620,10 +531,6 @@ void NPEDF(){
 	傳輸設定完畢後再將EvtArrival 取消
 ***********************************************/
 void RoundRobin(){
-	TDMATable *table=TDMA_Tbl;
-	Node *node=Head->nextnd;
-	bool NotifyFlag=true;		//確認傳輸只能一次(ConnSet)
-	
 	/*----------------------------------------------
 		Head對ConnNode下指令，在計算後的FrameSize內
 		FrameSize若計算完畢立即換下一TDMA的frame做事
@@ -659,59 +566,6 @@ void RoundRobin(){
 		Head->FrameSize--;
 	}
 	
-	/*----------------------------------------------
-		ConnSet中被通知的Node做對應傳輸或SCAN
-		Notify & Scan可同時運作
-
-		node是否有event arrival		(node->EvtArrival)
-		node是否有被通知				(Head->RecvNode, call BLE_EDF(node))
-		node energy consumption		(node->State)
-	----------------------------------------------*/
-	for(Node *n=Head->nextnd; n!=NULL; n=n->nextnd){
-		
-		//-------------------State為Transmission, 只在event arrival 時才做Buffer規劃
-		if(Timeslot % int(n->eventinterval)==0){
-			NodeBufferSet(n);		//整理好n中的NodeBuffer
-			n->EvtArrival =true;	//對此node設定EvtArrival
-		}else{
-			n->EvtArrival =false;
-		}
-
-		//-------------------進行傳輸 [有被通知(node->State=="Transmission") 且 event arrival(node->EvtArrival)]
-		if(n->State!="Sleep"){
-			bool eventarrival=false;
-			
-			if(n->EvtArrival && n->State=="Notify" && (Head->RecvNode==NULL || Head->RecvNode==n)){
-				Head->RecvNode=n;	//Head->RecvNode切換
-				n->State="Transmission";
-
-				Timeslot=Timeslot+2;
-				Head->FrameSize=Head->FrameSize-2;
-			}
-			
-			//-------------------進行傳輸 (Head->RecvNode要確認目前沒node或為當前node)
-			if(Head->RecvNode==n && NotifyFlag){
-				BLE_EDF(n);				//對n做傳輸
-
-				if(n->NodeBuffer->load==0){
-					Head->RecvNode=NULL;
-				}
-				
-				NotifyFlag=false;
-			}
-
-			//-------------------State為Scan
-			if(n->State=="Scan"){
-				//n->ScanDuration--;
-			}
-		}
-
-		//---------------------------------------Power consumption & State切換
-		Node_EnergyState(n);	//計算n的Energy
-		if(n->NodeBuffer->load==0 && n->State=="Transmission"){
-			n->State="Sleep";
-		}
-	}
 }
 
 /***********************************************
@@ -725,9 +579,6 @@ void RoundRobin(){
 	<D=timeslot+Tc, at event arrival>
 ***********************************************/
 void EIF(){
-	
-	bool NotifyFlag=true;		//確認傳輸只能一次(ConnSet)
-	
 	/*----------------------------------------------
 		Head對ConnNode下指令，在計算後的FrameSize內
 		FrameSize若計算完畢立即換下一TDMA的frame做事
@@ -786,60 +637,6 @@ void EIF(){
 		Head->FrameSize--;		
 	}
 	
-	/*----------------------------------------------
-		ConnSet中被通知的Node做對應傳輸或SCAN
-		Notify & Scan可同時運作
-
-		node是否有event arrival		(node->EvtArrival)
-		node是否有被通知				(Head->RecvNode, call BLE_EDF(node))
-		node energy consumption		(node->State)
-	----------------------------------------------*/
-	for(Node *n=Head->nextnd; n!=NULL; n=n->nextnd){
-		
-		//-------------------State為Transmission, 只在event arrival 時才做Buffer規劃
-		if(Timeslot % int(n->eventinterval)==0){
-			NodeBufferSet(n);		//整理好n中的NodeBuffer
-			n->EvtArrival =true;	//對此node設定EvtArrival
-		}else{
-			n->EvtArrival =false;
-		}
-
-		//-------------------進行傳輸 [有被通知(node->State=="Transmission") 且 event arrival(node->EvtArrival)]
-		if(n->State!="Sleep"){
-			bool eventarrival=false;
-			
-			if(n->EvtArrival && n->State=="Notify" && (Head->RecvNode==NULL || Head->RecvNode==n)){
-				Head->RecvNode=n;			//Head->RecvNode切換
-				n->State="Transmission";	//切換狀態
-				
-				//因為確認為n，在其傳輸時間須2.675ms，所以先加2ms (回去main會在加1ms)
-				Timeslot=Timeslot+2;
-				Head->FrameSize=Head->FrameSize-2;
-			}
-			
-			//-------------------進行傳輸 (Head->RecvNode要確認目前沒node或為當前node)
-			if(Head->RecvNode==n && NotifyFlag){
-				BLE_EDF(n);				//對n做傳輸
-
-				if(n->NodeBuffer->load==0){
-					Head->RecvNode=NULL;
-				}
-				
-				NotifyFlag=false;
-			}
-
-			//-------------------State為Scan
-			if(n->State=="Scan"){
-
-			}
-		}
-
-		//---------------------------------------Power consumption & State切換
-		Node_EnergyState(n);	//計算n的Energy
-		if(n->NodeBuffer->load==0 && n->State=="Transmission"){
-			n->State="Sleep";
-		}
-	}
 }
 
 /*=========================================
@@ -1009,12 +806,7 @@ void Finalcheck(){
 			
 ================================================*/
 void Polling(){
-	TDMATable *table=TDMA_Tbl;
-	Node *node=Head->nextnd;
-	bool NotifyFlag=true;		//確認傳輸只能一次(ConnSet)
-
 	/*----------------------------------------------
-		
 	----------------------------------------------*/
 	if(Head->FrameSize<=0 ){ //(Head->RecvNode目前是先擋住，但之後要對FrameSize做修改)
 		if(Cycle!=NULL){
@@ -1065,8 +857,10 @@ void Polling(){
 		}
 
 		Work_tbl=Cycle;
+
 		Work_tbl->Currentflag=true;
 		Work_tbl->ConnNode->State="Notify";
+
 		Head->FrameSize=Work_tbl->Size;
 		Work_tbl->Deadline=Work_tbl->Deadline+Work_tbl->Period;
 
@@ -1074,6 +868,29 @@ void Polling(){
 	}else{
 		Head->FrameSize--;
 	}
+
+}
+
+void SingleStatic(){
+	//find the minimum period
+	Packet* Minpkt=NULL;
+	for(Packet* pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
+		if(Minpkt==NULL){
+			Minpkt=pkt;
+		}else{
+			if(Minpkt->period > pkt->period){
+				Minpkt=pkt;
+			}
+		}
+	}
+
+	Head->nextnd->eventinterval=Minpkt->period;
+}
+
+
+void Write_Request(){
+	
+	bool NotifyFlag=true;		//確認傳輸只能一次(ConnSet)
 
 	/*----------------------------------------------
 		ConnSet中被通知的Node做對應傳輸或SCAN
@@ -1098,9 +915,10 @@ void Polling(){
 			bool eventarrival=false;
 			
 			if(n->EvtArrival && n->State=="Notify" && (Head->RecvNode==NULL || Head->RecvNode==n)){
-				Head->RecvNode=n;	//Head->RecvNode切換
-				n->State="Transmission";
-							
+				Head->RecvNode=n;			//Head->RecvNode切換
+				n->State="Transmission";	//切換狀態
+				
+				//因為確認為n，在其傳輸時間須2.675ms，所以先加2ms (回去main會在加1ms)
 				Timeslot=Timeslot+2;
 				Head->FrameSize=Head->FrameSize-2;
 			}
@@ -1118,7 +936,7 @@ void Polling(){
 
 			//-------------------State為Scan
 			if(n->State=="Scan"){
-				//n->ScanDuration--;
+
 			}
 		}
 
@@ -1128,20 +946,4 @@ void Polling(){
 			n->State="Sleep";
 		}
 	}
-}
-
-void SingleStatic(){
-	//find the minimum period
-	Packet* Minpkt=NULL;
-	for(Packet* pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
-		if(Minpkt==NULL){
-			Minpkt=pkt;
-		}else{
-			if(Minpkt->period > pkt->period){
-				Minpkt=pkt;
-			}
-		}
-	}
-
-	Head->nextnd->eventinterval=Minpkt->period;
 }
