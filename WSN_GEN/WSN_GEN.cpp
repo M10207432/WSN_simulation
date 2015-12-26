@@ -44,36 +44,33 @@ struct Packet{
 /*=================================
 		Function
 ==================================*/
-void NodeStruct();	//建立node的節點結構與packet結構
+void NodeStruct();			//建立node的節點結構與packet結構
 
 void create();
-void create_varied(double);
+void create_varied(double);	//Gen出Rand period (各node含有相同rate, pkt分配的rate相同)
+void NodeLocation();		//分配節點位置
 
-void NodeLocation();	//分配節點位置
-
-
+void CheckSetting();		//確認分配的period是否正確
 /*=================================
-		Global value
+		Gen Setting
 ==================================*/
-//double period[]={200,500,1000};
-double period[]={200,500,800};
-//double period[]={1000,2000,3000};
+double period[]={200,400,800};		
 double Hyperperiod=24000;
-double periodrange;			//period  rand時的差距
-const int Level1_Nodenum = 3;		//第一層Node數量<ConnNode>
+const int Level1_Nodenum = 1;		//第一層Node數量<ConnNode>
 const int Level2_Nodenum = 0;		//第二層Node數量<AdvNode>
-const int pktnum=2;				//每個node上的封包數
+const int pktnum=2;					//每個node上的封包數
 const short int Set=100;			//每一利用的Set數
 double Initrate=80;					//開始GEN的rate
-double inv_r=80;							//rate差距
-double Maxrate=960;				//最終 rate
-string GENfile="..\\GENresult\\input_varied_node3\\";//放到前一目錄下的GENresult目錄，產生txt檔
+double inv_r=40;					//rate差距
+double Maxrate=960;					//最終 rate
+string GENfile="..\\GENresult\\input_single\\";//放到前一目錄下的GENresult目錄，產生txt檔
 char Resultfile[]="..\\GENresult\\WSNGEN.txt";//放到前一目錄下的GENresult目錄，產生txt檔
+double periodrange=200;					//各個period上的差距 rand時的差距
 
 const short int Max_X_Axis = 100;	//最大X軸範圍
 const short int Max_Y_Axis = 100;	//最大Y軸範圍
 /*=================================
-					Ex setting
+		Ex setting
 ==================================*/
 const double leastperiod=80;	//period最小值
 const double largestperiod=5000;//period最大值
@@ -86,13 +83,16 @@ float Total_Uti=1.0;
 const double Max_pktuti=0.9;
 double tmp_totaluti=0;
 int Gobackcount=0;
-
+	
+/*=================================
+=================================*/
 Node* HEAD=new Node;			//總頭HEAD
 Node* node=new Node;
 Packet* packet=new Packet;
 
 int main(void){
 	
+	CheckSetting();				//判斷period是否設定正確
 	srand(time(NULL));			//隨機種子
 
 	for(double rate=Initrate; rate<=Maxrate; rate+=inv_r){
@@ -121,14 +121,6 @@ int main(void){
 		/*==================================================
 						GEN U 的 Set數
 		==================================================*/
-		
-		//======================================================
-		/*
-		period=new double[Level1_Nodenum];
-		for(int i=0; i<Level1_Nodenum; i++){
-			period[i]=(1000/(double)Level1_Nodenum)*(i+1);
-		}
-		*/
 
 		for(int setcount=0;setcount<Set;setcount++){
 
@@ -136,12 +128,12 @@ int main(void){
 							Create Node & Packet
 			==================================================*/
 
-			NodeStruct();
+			NodeStruct();			//建立node與packet 結構
 			
 			//create();
-			create_varied(rate);
+			create_varied(rate);	//Rand gen出varied period (含有相同data rate)
 
-			NodeLocation();
+			NodeLocation();			//各個node的address
 
 			/*==================================================
 							寫入資訊 TXT
@@ -401,45 +393,34 @@ void create_varied(double rate){
 	//==========================================================setting 
 	int i=0;
 	for(Node* n=HEAD->nextnd; n!=NULL; n=n->nextnd){
+
 		n->period=ceil(period[i]);
-		n->rate=rate*(period[i]/1000);
+		n->rate=rate*(period[i]/1000);	//單位為ms
+
+		//各個node的period範圍不同，藉由i來做切換
 		i++;
-		if(i>2){
+		if(i>sizeof(period)/sizeof(period[0])){
 			i=0;
 		}
 		//=========================================================splite to pkt
 		for(Packet* pkt=n->pkt; pkt!=NULL; pkt=pkt->nextpkt){
-			pkt->load=ceil(n->rate/pktnum);
+			pkt->utilization=ceil(n->rate/pktnum);	//平均分配各個node中pkt的rate
 			
+			//開始rand 不同period給各個pkt
 			double p=0;
 			do{
-				
 				if(Level1_Nodenum==1){
-					p=rand()%900+100;
+					int range=period[sizeof(period)/sizeof(period[0])-1]-period[0]; //range為最小到最大period
+					p=rand()%range+period[0];										//單一node時range為period[0]-period[MAX]
 				}else{
-					if(n->period==200){
-						p=(rand()%200)+(n->period-50);	//150~300
-					}else if(n->period==500){
-						p=(rand()%400)+(n->period-200);	//300~700
-					}else if(n->period==1000){
-						p=(rand()%400)+(n->period-200);	//800~1200
-					}else if (n->period==350){
-						p=(rand()%100)+(n->period);	//350
-					}else if (n->period==800){
-						p=(rand()%200)+(n->period-100);	//700-1000
-						//p=n->period;
-					}else{
-						p=Hyperperiod;
-					}
-					//p=((double(rand()%int(pkt->load))+1)/pkt->load)*n->period;//0~avg pkt->load ===========rand
+					p=(rand()%(int)periodrange)+(n->period-periodrange/2);			//period前後periodrange一半
 				}
 				
 			}while((int)Hyperperiod%(int)p!=0);
 
-			//save data
-			
+			//計算load與assign period (重點為period變化)
 			if(p!=Hyperperiod){
-				pkt->load=ceil(pkt->load*(p/n->period));
+				pkt->load=ceil(pkt->utilization*(p/n->period));	//計算load
 				pkt->period=p;
 			}else{
 				pkt->period=n->period;
@@ -450,6 +431,9 @@ void create_varied(double rate){
 	}
 }
 
+/*================================
+		建立Node Packet結構
+================================*/
 void NodeStruct(){
 	delete HEAD;delete node;delete packet;
 	HEAD=new Node();
@@ -512,10 +496,10 @@ void NodeStruct(){
 
 }
 
+/*==================================================
+				分配各節點位置
+==================================================*/
 void NodeLocation(){
-	/*==================================================
-					分配各節點位置
-	==================================================*/
 	node=HEAD->nextnd;
 	int tmplevel1=Level1_Nodenum;
 	int tmplevel2=Level2_Nodenum;
@@ -552,5 +536,27 @@ void NodeLocation(){
 
 		cout<<"Node Address: "<<node->coor_x<<" "<<node->coor_y<<endl;
 		node=node->nextnd;
+	}
+}
+
+void CheckSetting(){
+	
+	for(int i=0; i<sizeof(period)/sizeof(period[0]); i++){
+		int min_p=period[i]-periodrange/2;
+		int max_p=period[i]+periodrange/2;
+		int p=period[i]-periodrange/2;
+
+		//找範圍內的數值 p
+		do{
+			p++;
+		}while((int)Hyperperiod%p!=0);
+
+		//判斷是否在範圍內
+		if(p>=min_p && p<=max_p){
+			printf("With %lf is OK\n",period[i]);
+		}else{
+			printf("With %lf is Not suitable\n",period[i]);
+			system("PAUSE");
+		}
 	}
 }

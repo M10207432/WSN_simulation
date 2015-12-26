@@ -181,7 +181,6 @@ step4:找出最大rate , 其在區間的packet assign 此rate
 void EventInterval::DIF(){
 	PacketQueue();
 
-	DIFMinperiod=ReadyQ->readynextpkt->period;
 	Packet * DIFpacket;
 	map<double,map<double,DIFtable>> Table;	//二維map 內容格式為DIFtable map[arrival][deadline]
 	double maxarrvial,maxdeadline;			//找最大Density中 的區間

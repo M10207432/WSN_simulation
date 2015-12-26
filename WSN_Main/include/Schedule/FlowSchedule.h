@@ -14,27 +14,30 @@ extern int overheadcount;
 extern FrameTable *Cycle;
 extern short int pollingcount;
 
-void FlowEDF();
+/*=====================
+	Node Packet setting
+	Main Sche
+=====================*/
 void PacketQueue();
-void BufferSet();
-void MainSchedule(int ,bool );
-void Schedulability();
-
 void NodeBufferSet(Node *);
 void BLE_EDF(Node *);
 
-void FrameEDFSchedule();
-void TDMASchedule();
+/*=====================
+	Write-Request¤èªk
+=====================*/
+void Schedule(int,int);
+void NPEDF();
+void RoundRobin();
 void EIF();
 void Polling();
-void SingleNodeSchedule(int);
 
+void SingleNodeSchedule(int);
 void LazyOnWrite();
 void LazyIntervalCB();
 void DIFCB();
-void SingleStatic();
 
-void Schedule(int,int);
+void SingleStatic();
 void CheckPkt();
 void Finalcheck();
 
+void Schedulability();

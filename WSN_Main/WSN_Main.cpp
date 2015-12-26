@@ -28,21 +28,20 @@ const float MAX_Rate=960;
 const short int Set=100;
 
 short int readsetting=0;				//是否要讀取本地Setting.txt
-short int Service_interval=1;				//0=>Event, 1=>MEI, 2=>DIF, 3=>Lazy and 4=>Greedy (Min period) <單一node上對varied data調整>
-short int Connection_Interval=2;			//0=>LDC (各service interval除node1level), 1=>Greedy (選 Min interval除node1level), 2=>EIMA <TDMA和connection interval上的校正>
-short int WriReq_Sche=2;		//0=>NPEDF 1=>RR 2=>EIF 3=>Polling <Gateway 通知node傳輸順序>
+short int Service_interval=1;			//0=>Event, 1=>MEI, 2=>DIF, 3=>Lazy and 4=>Greedy (Min period) <單一node上對varied data調整>
+short int Connection_Interval=2;		//0=>LDC (各service interval除node1level), 1=>Greedy (選 Min interval除node1level), 2=>EIMA <TDMA和connection interval上的校正>
+short int WriReq_Sche=2;				//0=>NPEDF 1=>RR 2=>EIF 3=>Polling <Gateway 通知node傳輸順序>
 
 bool sche_flag=false;					//是否要測試schedulability
 int EXECBclock=100;						//Lazy Timer (ms)
 short int TDMAproposal=0;				//TDMA的assign方法 0=>自己的方法(只有一個superslot), 1=>Node base方法 (會再接續加入superslot)
-
+bool EIMADemand_flag=false;				//判斷EIMA計算是否要用demand bound計算
 /*=================================
 		Global value
 ==================================*/
 bool preemptionenable=true;			//設定可否preemption
 int Flowinterval=0;					//觸發進入flow的conneciton interval
 int Pktsize=0;						//計算IntervalPower的pkt num
-double DIFMinperiod=0;
 double Meetcount=0;
 double AverageE=0;
 int TDMASlot=1;
@@ -81,7 +80,6 @@ long int Hyperperiod=0;
 double Maxrate=20;					//最高速度為20bytes/slot
 double payload=20;					//payload 為 20bytes
 int Maxbuffersize=4;				//Maxbuffersize 為 4個packets
-double timeslot=10;					//單位時間為10ms
 
 double slotinterval=10;				//最短connection interval為10ms
 double Minumum_interval=10;			//最短connection interval為10ms
@@ -101,13 +99,6 @@ double I_Tran=0.014274;			//Transmission 電流 14.274mA
 double Time_Tran=0.00049;		//Transmission 時間 0.49ms
 double BatteryCapacity=0.230;	//230mAh (有其他篇章 是以540mAh <Energy Efficient MAC for Qos Traffic in Wireless Body Area Network)>
 double unit=0.001;				//時間單位為1ms
-
-double Ie=0.07679763;		//傳輸峰值 電流
-double Te=0.0002768;		//傳輸時間
-double K=1;				//Rate power常數
-double TotalEnergy=0;
-double parma=0.00191571992;
-double parmb=24.4058498;
 
 /*========================================
 		Create Object
@@ -140,7 +131,7 @@ int main(int argc, char* argv[]){
 		AverageE=0;
 		totalevent=0;
 
-		////-----------------------------Read setting file
+		//-----------------------------Read setting file
 		CreateFile(U,Set,argv[0]);//開啟WSNGEN 並且建立輸出檔案 (WSNFile.cpp)
 		if(readsetting==1){
 			ExperimentSetting(&Service_interval, &Connection_Interval, &WriReq_Sche);//做實驗設定輸出
@@ -150,10 +141,10 @@ int main(int argc, char* argv[]){
 					在同一Data Rate下 跑Set數
 		===================================================*/
 		for(short int setnum=0;setnum<Set;setnum++){
-			Meetflag=true;
-			Timeslot=0;
+			Meetflag=true;		//Reset Meet flag
+			Timeslot=0;			//Reset time slot
 			TDMASlot=-1;
-			Hyperperiod=0;
+			Hyperperiod=0;		
 			totalevent=0;
 			NotifyNode=NULL;
 			Cycle=NULL;
@@ -167,23 +158,21 @@ int main(int argc, char* argv[]){
 			StructGEN();		
 			
 			/*==========================
-				計算Connection interval 
-					& Adv interval
+				計算Service interval
 			==========================*/
 			Interval_obj.ServiceInterval_Algorithm(Service_interval);		//安排好各個node上的interval
 
 			/*==========================
-			Topology & TDMA assignment
+				Topology & TDMA assignment
 			==========================*/
-			TDMA_obj.Topology();
-			TDMA_obj.NodeColoring();				
+			TDMA_obj.Topology();						//建立傳輸目標node, 距離關係 & 建立conflict關係
+			TDMA_obj.NodeColoring();					//安排各個node的color
 			TDMA_obj.TDMA_Assignment(TDMAproposal);		//安排好TDMA_Tbl
 
 			/*==========================
-			Interval & TDMA adjustment 
+				計算Connection interval 
 			==========================*/
 			Interval_obj.ConnectionInterval_Algorithm(Connection_Interval);		//包含TDMA考量,做node上的interval修改 且含有Scan duration 計算
-			Interval_obj.ConnectionPriority();								//連接順序,設定EventTime
 
 			/*=========================
 				Schedulability test
@@ -199,7 +188,7 @@ int main(int argc, char* argv[]){
 				<NotifyNode, NotifyTable>
 			==========================*/
 			Head->RecvNode=NULL;		//Head 接收節點要設定為NULL
-			Head->FrameSize=0;
+			Head->FrameSize=0;			//Head 會counting waiting time
 			TDMA_Tbl->currslot=true;	//一開始第一個要為true
 			Callbackclock=0;
 

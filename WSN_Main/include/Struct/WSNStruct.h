@@ -31,7 +31,6 @@ struct Node{
 	double EIMA_avgcurrent;
 	double lifetime;
 	double eventinterval;	//connection interval or advertisement interval
-	double EventTime;
 	short int ExTimeslot;
 	short int LatestTimeslot;
 	short int edge;			//連接數目

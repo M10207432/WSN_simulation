@@ -2,7 +2,6 @@
 #define CONNINTERVAL_H
 
 extern double Connectioninterval;
-extern double DIFMinperiod;
 extern short int Rateproposal;
 extern double Minumum_interval;
 extern bool EIMADemand_flag;
