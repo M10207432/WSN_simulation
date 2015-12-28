@@ -22,10 +22,10 @@ using namespace std;
 /*=================================
 		Experiment Setting
 ==================================*/
-const float inv_r=40;
-const float MIN_Rate=40;
-const float MAX_Rate=960;
-const short int Set=100;
+const float inv_r=40;					//Input 各個rate間距
+const float MIN_Rate=40;				//Input開始的rate
+const float MAX_Rate=960;				//Input最終rate
+const short int Set=100;				//Input set 數量
 
 short int readsetting=1;				//是否要讀取本地Setting.txt
 short int Service_interval=1;			//0=>Event, 1=>MEI, 2=>DIF, 3=>Lazy and 4=>Greedy (Min period) <單一node上對varied data調整>
@@ -34,32 +34,29 @@ short int WriReq_Sche=2;				//0=>NPEDF 1=>RR 2=>EIF 3=>Polling <Gateway 通知node
 
 bool sche_flag=false;					//是否要測試schedulability
 int EXECBclock=100;						//Lazy Timer (ms)
-short int TDMAproposal=0;				//TDMA的assign方法 0=>自己的方法(只有一個superslot), 1=>Node base方法 (會再接續加入superslot)
 bool EIMADemand_flag=false;				//判斷EIMA計算是否要用demand bound計算
+
 /*=================================
 		Global value
 ==================================*/
-bool preemptionenable=true;			//設定可否preemption
-int Flowinterval=0;					//觸發進入flow的conneciton interval
-int Pktsize=0;						//計算IntervalPower的pkt num
-double Meetcount=0;
-double AverageE=0;
-int TDMASlot=1;
-int overheadcount=6;				//動態改變interval時需要等待6個interval才能變動
-FrameTable* Cycle=NULL;
-short int pollingcount=1;
+short int TDMAproposal=0;				//TDMA的assign方法 0=>自己的方法(只有一個superslot), 1=>Node base方法 (會再接續加入superslot)
+int Pktsize=0;							//計算IntervalPower的pkt num
+double Meetcount=0;						//在Set數量中，meet的數量
+double AverageE=0;						//不管有沒miss，計算整體Set的energy
 
-int Callbackclock;
+int overheadcount=6;					//動態改變interval時需要等待6個interval才能變動
+FrameTable* Cycle=NULL;					//Polling schedule用到的轉換cyle
+short int pollingcount=1;				//Polling schedule 計數cycle id
+
+int Callbackclock;						//計數Callback時間
 Edge *HeadEdge=new Edge;
 Edge *MainEdge=new Edge;
 Edge *ConflictEdge=new Edge;
 FrameTable *FrameTbl=new FrameTable;
 TDMATable *TDMA_Tbl=new TDMATable;
-TDMATable *NotifyTable;
 PacketBuffer* Buffer=new PacketBuffer;
 Node* SetHead=new Node;
 Node* Head=new Node;
-Node* NotifyNode=new Node;
 Packet* Headpacket=new Packet;
 Node *SetNode=new Node;
 Node* node=new Node;
@@ -71,12 +68,12 @@ int ReadyQ_overflag=0;
 stringstream stream;
 string str_coor_x,str_coor_y,str_radius;
 string strload,strperiod,strutilization,strhop;
-int nodenum=0;
-int nodelevel1=0;
-int nodelevel2=0;
-int pktnum=0;
-long int Timeslot=0;
-long int Hyperperiod=0;
+int nodenum=0;						//所有node總數
+int nodelevel1=0;					//Connection node數量		(由input取得)
+int nodelevel2=0;					//Advertisement node數量		(由input取得)
+int pktnum=0;						//每一node中的packet數量		(由input取得)
+long int Timeslot=0;				//Schedule時 計數的time slot (由input取得)
+long int Hyperperiod=0;				//Hyper-period				(由input取得)
 double Maxrate=20;					//最高速度為20bytes/slot
 double payload=20;					//payload 為 20bytes
 int Maxbuffersize=4;				//Maxbuffersize 為 4個packets
@@ -143,10 +140,9 @@ int main(int argc, char* argv[]){
 		for(short int setnum=0;setnum<Set;setnum++){
 			Meetflag=true;		//Reset Meet flag
 			Timeslot=0;			//Reset time slot
-			TDMASlot=-1;
+			
 			Hyperperiod=0;		
 			totalevent=0;
-			NotifyNode=NULL;
 			Cycle=NULL;
 			pollingcount=1;
 
@@ -185,7 +181,6 @@ int main(int argc, char* argv[]){
 				EDF scheduling
 				(FlowSchedule.cpp)
 				<Head, TDMA_Tbl> 
-				<NotifyNode, NotifyTable>
 			==========================*/
 			Head->RecvNode=NULL;		//Head 接收節點要設定為NULL
 			Head->FrameSize=0;			//Head 會counting waiting time
@@ -211,6 +206,7 @@ int main(int argc, char* argv[]){
 	}
 	CloseFinal();
 
+	cout<<"Simulation Done :)"<<endl;
 	system("PAUSE");
 	return 0;
 }
