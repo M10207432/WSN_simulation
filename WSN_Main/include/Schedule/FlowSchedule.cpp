@@ -697,6 +697,7 @@ void SingleNodeSchedule(int intervalpropose){
 void LazyOnWrite(){
 	double Rate_data,Rate_BLE;
 	double load=0,min_deadline=-1;
+	double load_minperiod=-1,minperiod=-1;
 
 	for(Packet *pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
 		if(pkt->readyflag){
@@ -705,12 +706,18 @@ void LazyOnWrite(){
 				min_deadline=pkt->deadline;
 			}
 		}
+
+		if(minperiod==-1 || pkt->period<minperiod){
+			minperiod=pkt->period;
+			load_minperiod=pkt->load;
+		}
 	}
 	Rate_data=load/(min_deadline-Timeslot);							//計算此時的data rate
 	Rate_BLE=(payload*Maxbuffersize)/(Head->nextnd->eventinterval);	//計算此時的BLE rate
 
 	if(Rate_data>=Rate_BLE){
 		Head->nextnd->eventinterval=10;
+		
 		Callbackclock=EXECBclock;		//Reset timer
 	}
 }
@@ -722,7 +729,7 @@ void LazyIntervalCB(){
 	if(Callbackclock==0){
 		double MaxRate_data,MinRate_BLE,Rate_BLE;
 		double Rate_CB,Rate_reduce;
-		double load=0,min_deadline=-1,long_period=-1;
+		double load=0,min_deadline=-1,long_period=-1, min_period=-1, load_minperiod;
 
 		for(Packet *pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
 		
@@ -733,11 +740,16 @@ void LazyIntervalCB(){
 			if(long_period==-1 || pkt->period>long_period){
 				long_period=pkt->period;
 			}
+			if(min_period==-1 || pkt->period<min_period){
+				min_period=pkt->period;
+				load_minperiod=pkt->load;
+			}
 		}
 
-		MaxRate_data=load/(min_deadline-Timeslot);							//計算此時的data rate
-		Rate_CB=(payload*Maxbuffersize)/EXECBclock;					//計算此時的BLE rate
-		MinRate_BLE=(payload*Maxbuffersize)/(long_period);	//計算此時的BLE rate
+		//MaxRate_data=load/(min_deadline-Timeslot);						//計算此時的data rate
+		MaxRate_data=(payload*Maxbuffersize)/(min_period);						//計算此時的data rate
+		Rate_CB=(payload*Maxbuffersize)/EXECBclock;						//計算此時的BLE rate
+		MinRate_BLE=(payload*Maxbuffersize)/(long_period);				//計算此時的BLE rate
 		Rate_BLE=(payload*Maxbuffersize)/(Head->nextnd->eventinterval);	//計算此時的BLE rate
 
 		Rate_reduce=MaxRate_data-MinRate_BLE;

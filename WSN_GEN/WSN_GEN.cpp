@@ -56,14 +56,14 @@ void CheckSetting();		//確認分配的period是否正確
 ==================================*/
 double period[]={200,400,800};		
 double Hyperperiod=24000;
-const int Level1_Nodenum = 1;		//第一層Node數量<ConnNode>
+const int Level1_Nodenum = 3;		//第一層Node數量<ConnNode>
 const int Level2_Nodenum = 0;		//第二層Node數量<AdvNode>
 const int pktnum=2;					//每個node上的封包數
 const short int Set=100;			//每一利用的Set數
-double Initrate=80;					//開始GEN的rate
+double Initrate=40;					//開始GEN的rate
 double inv_r=40;					//rate差距
 double Maxrate=960;					//最終 rate
-string GENfile="..\\GENresult\\input_single\\";//放到前一目錄下的GENresult目錄，產生txt檔
+string GENfile="..\\GENresult\\input_varied_node3\\";//放到前一目錄下的GENresult目錄，產生txt檔
 char Resultfile[]="..\\GENresult\\WSNGEN.txt";//放到前一目錄下的GENresult目錄，產生txt檔
 double periodrange=200;					//各個period上的差距 rand時的差距
 
@@ -399,7 +399,7 @@ void create_varied(double rate){
 
 		//各個node的period範圍不同，藉由i來做切換
 		i++;
-		if(i>sizeof(period)/sizeof(period[0])){
+		if(i>=sizeof(period)/sizeof(period[0])){
 			i=0;
 		}
 		//=========================================================splite to pkt
