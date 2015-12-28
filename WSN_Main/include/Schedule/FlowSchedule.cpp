@@ -22,7 +22,7 @@ using namespace std;
 /*==========================
 	判斷Write-Request方法
 ==========================*/
-void Schedule(int propose, int intervalpropose){
+void Schedule(int WRSche, int ServiceInterval){
 	
 	CheckPkt();	//確認有沒有miss
 	/*==========================
@@ -30,7 +30,7 @@ void Schedule(int propose, int intervalpropose){
 			或是multi node
 	==========================*/
 	if((nodelevel1+nodelevel2)!=1){
-		switch (propose){
+		switch (WRSche){
 		case 0:
 			NPEDF();
 			break;
@@ -47,7 +47,7 @@ void Schedule(int propose, int intervalpropose){
 
 		Write_Request();
 	}else{
-		SingleNodeSchedule(intervalpropose);
+		SingleNodeSchedule(ServiceInterval);
 	}
 }
 
@@ -156,7 +156,6 @@ void PacketQueue(){
 			pkt->nodereadyprepkt=tmpreadypkt;
 		}
 	}
-	
 }
 
 /*=========================
@@ -278,10 +277,14 @@ void BLE_EDF(Node *node){
 				(包含判斷是否結束)
 		---------------------------------------------*/
 		PacketBuffer *Buffer=node->NodeBuffer;
+
+		//Debug not normal situation
 		if(Buffer->load<0){
 			printf("Buffer->load<0\n");
 			system("PAUSE");
 		}
+
+		//Transmission
 		if(Buffer->load!=0){
 			totalevent++;
 
@@ -308,7 +311,6 @@ void BLE_EDF(Node *node){
 			}
 
 			Schdulefile<<" NP:"<<packet->node->id<<","<<packet->id;
-			//cout<<"P:"<<packet->id<<endl;
 
 			//=============================================傳完,換下一packet
 			if(packet->exeload==0){
@@ -347,30 +349,10 @@ void BLE_EDF(Node *node){
 			//=============================================確認Buffer沒有packet,將arrival_flag設為false
 			if(Buffer->load==0){
 				tmpnode->arrival_flag=0;
-				tmpnode->ContinueNotify=false;
-				NotifyNode=NULL;
-
-				int Maxslot=0;	//找出TDMA最大Slot id
-				TDMATable *FlowTable=TDMA_Tbl;
-				while(FlowTable!=NULL){
-
-					if(FlowTable->slot > Maxslot){
-						Maxslot=FlowTable->slot;
-					}
-
-					FlowTable=FlowTable->next_tbl;
-				}
-	
-				TDMASlot++;
-				if(TDMASlot>Maxslot){
-					TDMASlot=1;
-				}
 			}
 			
 			Schdulefile<<endl;
 		}else{
-			//BLE_NotifyNode->arrival_flag=0;
-			NotifyNode=NULL;
 			Buffer=NULL;
 		}
 }
@@ -475,7 +457,6 @@ void NodeBufferSet(Node * SettingNode){
 	node->State為被通知的node
 	node->EvtArrival為event 抵達
 ***********************************************/
-FrameTable *Work_tbl=NULL;
 void NPEDF(){
 	
 	/*----------------------------------------------
@@ -487,7 +468,7 @@ void NPEDF(){
 	if(Head->FrameSize<=0){ //(Head->RecvNode目前是先擋住，但之後要對FrameSize做修改)
 		
 		//找最小FrameTable的deadline <Arrival>
-		Work_tbl=NULL;
+		FrameTable* Work_tbl=NULL;
 		for(FrameTable *Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
 			if(Timeslot >= Ftbl->arrival){
 				if(Work_tbl==NULL){
@@ -502,10 +483,10 @@ void NPEDF(){
         
         if(Work_tbl!=NULL){
             Work_tbl->arrival=Work_tbl->arrival+Work_tbl->Period;
-            Work_tbl->ConnNode->State="Notify";
-            Head->FrameSize=Work_tbl->Size;
             Work_tbl->Deadline=Work_tbl->Deadline+Work_tbl->Period;
-			            
+			Work_tbl->ConnNode->State="Notify";
+
+			Head->FrameSize=Work_tbl->Size;            
             Head->FrameSize--;
         }
 	}else{
@@ -596,7 +577,7 @@ void EIF(){
 		}
 
 		//找最小FrameTable的deadline <Arrival>
-		Work_tbl=NULL;
+		FrameTable* Work_tbl=NULL;
 		for(FrameTable *Ftbl=FrameTbl; Ftbl!=NULL; Ftbl=Ftbl->next_tbl){
 			if(Timeslot >= Ftbl->arrival){
 				if(Work_tbl==NULL){
@@ -642,28 +623,22 @@ void EIF(){
 /*=========================================
 			單一node上的schedule
 =========================================*/
-void SingleNodeSchedule(int intervalpropose){
+void SingleNodeSchedule(int ServiceInterval){
 	Node *n=Head->nextnd;
 	
 	//-------------------------------------Callback Timer Trigger
-	switch(intervalpropose){
+	switch(ServiceInterval){
 	case 2: //------------DIF
 		DIFCB();
 		break;
 	case 3:	//------------Lazy
 		LazyIntervalCB();
 		break;
-		/*
-	case 4:
-		SingleStatic();
-		break;
-		*/
 	}
 	
-
 	//---------------------------------------判斷connection event是否arrival
 	if(Timeslot % int(n->eventinterval)==0){
-		if(intervalpropose==3){ //------------Lazy
+		if(ServiceInterval==3){ //------------Lazy
 			LazyOnWrite();		//若有OnWrite則判斷
 		}
 
@@ -868,7 +843,7 @@ void Polling(){
 			}
 		}
 
-		Work_tbl=Cycle;
+		FrameTable* Work_tbl=Cycle;
 
 		Work_tbl->Currentflag=true;
 		Work_tbl->ConnNode->State="Notify";
@@ -881,22 +856,6 @@ void Polling(){
 		Head->FrameSize--;
 	}
 
-}
-
-void SingleStatic(){
-	//find the minimum period
-	Packet* Minpkt=NULL;
-	for(Packet* pkt=Head->nextnd->pkt; pkt!=NULL; pkt=pkt->nextpkt){
-		if(Minpkt==NULL){
-			Minpkt=pkt;
-		}else{
-			if(Minpkt->period > pkt->period){
-				Minpkt=pkt;
-			}
-		}
-	}
-
-	Head->nextnd->eventinterval=Minpkt->period;
 }
 
 

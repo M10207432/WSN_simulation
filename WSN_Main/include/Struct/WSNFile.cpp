@@ -221,29 +221,6 @@ void SaveFile(short int setnum){
 		#ifdef _ShowLog
 				cout<<"Meet Deadsline:MEET"<<endl;
 		#endif
-		/*
-		//Cal Energy
-		node=Head->nextnd;
-		SetNode=SetHead->nextnd;
-		while(node!=NULL){
-			SetNode->avgenergy=SetNode->avgenergy+node->energy;
-
-			SetNode=SetNode->nextnd;
-			node=node->nextnd;
-		}
-
-		//Cal lifetime(©ñ©óSetHead¤¤)
-		double minlifetime=-1;
-		SetNode=SetHead->nextnd;
-		for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd){
-			if(minlifetime==-1 || n->lifetime<minlifetime){
-				minlifetime=n->lifetime;
-			}
-		}
-		SetHead->lifetime+=minlifetime;
-
-		AverageE=AverageE+totalenergy;
-		*/
 		Meetcount++;
 	}
 	else{

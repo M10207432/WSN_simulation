@@ -15,7 +15,6 @@ struct Node{
 	int id;					//Node ID
 	short int hop;			//range 1~3
 	short int color;		//顏色
-	bool ContinueNotify;	//Connection interval arrival則為True, Buffer=Empty為False
 	bool EvtArrival;
 	string CMD;				//通知動作 "IDLE" "Notify" "SCAN" (只會是ConnSet)
 	int FrameSize;			//TDMA對應的FrameSize
@@ -173,7 +172,6 @@ extern Node* Head;
 extern Packet* Headpacket;
 extern Node *SetNode;
 extern Node* node;	
-extern Node*NotifyNode;	//正在傳輸的node,最多可連傳6個packets
 extern Packet* packet;
 extern Packet *ReadyQ;
 extern Flow *Headflow;

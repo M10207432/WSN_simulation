@@ -131,7 +131,6 @@ void StructGEN(){
 			node->ChildNode=NULL;
 			node->order_flag=false;
 			node->arrival_flag=0;
-			node->ContinueNotify=false;
 			node->Notify_evtcount=0;
 			node->Tran_evtcount=0;
 			node->EIMA_avgcurrent=0;

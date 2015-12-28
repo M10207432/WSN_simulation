@@ -6,14 +6,14 @@ extern double Maxrate;				//最高速度為20bytes/slot
 extern double payload;				//payload 為 20bytes
 extern int Maxbuffersize;			//Maxbuffersize 為 6個packets
 extern int Pktsize;					//計算IntervalPower的pkt num
-extern int TDMASlot;
-extern int EXECBclock;			//做DIF與Lazy 計時器
+
+extern int EXECBclock;				//做DIF與Lazy 計時器
 extern int Callbackclock;			//做DIF與Lazy 計時器
-extern TDMATable *NotifyTable;
 extern int overheadcount;
 extern FrameTable *Cycle;
 extern short int pollingcount;
 
+void Schedule(int,int);	//Write-Request method, Service Interval method
 /*=====================
 	Node Packet setting
 	Main Sche
@@ -26,18 +26,20 @@ void Write_Request();
 /*=====================
 	Write-Request方法
 =====================*/
-void Schedule(int,int);
-void NPEDF();
-void RoundRobin();
-void EIF();
-void Polling();
+void NPEDF();			//Non-premptive Earliest Deadline First
+void RoundRobin();		//Sequence request data in one cycle
+void EIF();				//Earliest Interval First
+void Polling();			//Sequnce request data with different cycle
 
 void SingleNodeSchedule(int);
 void LazyOnWrite();
 void LazyIntervalCB();
 void DIFCB();
 
-void SingleStatic();
+/*=====================
+	確認	每一packet
+	沒有miss 
+=====================*/
 void CheckPkt();
 void Finalcheck();
 
