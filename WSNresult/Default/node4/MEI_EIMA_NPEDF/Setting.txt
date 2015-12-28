@@ -1,0 +1,4 @@
+F:\WSN_Simulation\GENresult\input_varied_node4
+MEI
+EIMA
+NPEDF
