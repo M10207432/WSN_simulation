@@ -98,7 +98,7 @@ void SaveFile(short int setnum){
 	node=Head->nextnd;
 	while(node!=NULL){
 		node->energy=node->energy*Vcc;
-		node->lifetime=BatteryCapacity/((node->energy/Vcc)/(Hyperperiod*0.001));
+		node->lifetime=BatteryCapacity/((node->energy/Vcc)/(Hyperperiod*unit));
 
 		#ifdef _ShowLog
 				cout<<"Node"<<node->id<<" E:"<<node->energy<<" Lifetime:"<<node->lifetime<<endl;

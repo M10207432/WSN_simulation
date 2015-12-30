@@ -862,6 +862,7 @@ void Polling(){
 void Write_Request(){
 	
 	bool NotifyFlag=true;		//確認傳輸只能一次(ConnSet)
+	bool IncreaseSlot=false;	//確認是否需要加event時間
 
 	/*----------------------------------------------
 		ConnSet中被通知的Node做對應傳輸或SCAN
@@ -874,13 +875,15 @@ void Write_Request(){
 	for(Node *n=Head->nextnd; n!=NULL; n=n->nextnd){
 		
 		//-------------------State為Transmission, 只在event arrival 時才做Buffer規劃
+		
 		if(Timeslot % int(n->eventinterval)==0){
 			NodeBufferSet(n);		//整理好n中的NodeBuffer
 			n->EvtArrival =true;	//對此node設定EvtArrival
+
 		}else{
 			n->EvtArrival =false;
 		}
-
+		
 		//-------------------進行傳輸 [有被通知(node->State=="Transmission") 且 event arrival(node->EvtArrival)]
 		if(n->State!="Sleep"){
 			bool eventarrival=false;
@@ -890,18 +893,18 @@ void Write_Request(){
 				n->State="Transmission";	//切換狀態
 				
 				//因為確認為n，在其傳輸時間須2.675ms，所以先加2ms (回去main會在加1ms)
-				Timeslot=Timeslot+2;
-				Head->FrameSize=Head->FrameSize-2;
+				IncreaseSlot=true;
 			}
 			
 			//-------------------進行傳輸 (Head->RecvNode要確認目前沒node或為當前node)
 			if(Head->RecvNode==n && NotifyFlag){
 				BLE_EDF(n);				//對n做傳輸
-
+				/*
 				if(n->NodeBuffer->load==0){
+					Node_EnergyState(n);	//計算n的Energy
 					Head->RecvNode=NULL;
 				}
-				
+				*/
 				NotifyFlag=false;
 			}
 
@@ -913,8 +916,15 @@ void Write_Request(){
 
 		//---------------------------------------Power consumption & State切換
 		Node_EnergyState(n);	//計算n的Energy
-		if(n->NodeBuffer->load==0 && n->State=="Transmission"){
+		if(n->NodeBuffer->load==0 && n->State=="Transmission" && Head->RecvNode==n){
 			n->State="Sleep";
+			Head->RecvNode=NULL;
 		}
+	}
+
+	//
+	if(IncreaseSlot){
+		Timeslot=Timeslot+2;
+		Head->FrameSize=Head->FrameSize-2;
 	}
 }

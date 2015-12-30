@@ -103,13 +103,14 @@ void NodeState(){
 
 void Node_EnergyState(Node *node){
 	
-	double v=0.003;
-
+	double v=I_sleep, b=I_notify;
+	I_sleep=0.0001;
+	//I_notify=0.009999;
 	if(node!=NULL){
 		/*====================================================
 					依照不同狀態做 Power計算
 		====================================================*/
-		//==========================Sleep 狀態
+		//==========================Sleep 狀態 且connection event未arrival
 		if(node->State=="Sleep" && !node->EvtArrival){
 			node->energy=node->energy+(I_sleep*Time_sleep);
 		}
@@ -119,7 +120,11 @@ void Node_EnergyState(Node *node){
 			node->energy=node->energy+((I_notify*Time_notify)+(I_sleep*(v-Time_notify)));
 			node->Notify_evtcount+=1;
 		}else if(node->State=="Transmission" && Head->RecvNode==node){ //==========================Transmission 狀態
-			node->energy=node->energy+((I_Tran*Time_Tran)+(I_sleep*(Time_sleep-Time_Tran)));
+			if(Time_Tran<Time_sleep){
+				node->energy=node->energy+((I_Tran*Time_Tran)+(I_sleep*(Time_sleep-Time_Tran)));
+			}else{
+				node->energy=node->energy+(I_Tran*Time_Tran);
+			}
 			node->Tran_evtcount+=1;
 		}
 		
@@ -128,4 +133,7 @@ void Node_EnergyState(Node *node){
 			
 		}
 	}
+
+	I_sleep=v;
+
 }

@@ -27,7 +27,7 @@ const float MIN_Rate=40;				//Input開始的rate
 const float MAX_Rate=960;				//Input最終rate
 const short int Set=100;				//Input set 數量
 
-short int readsetting=1;				//是否要讀取本地Setting.txt
+short int readsetting=0;				//是否要讀取本地Setting.txt
 short int Service_interval=1;			//0=>Event, 1=>MEI, 2=>DIF, 3=>Lazy and 4=>Greedy (Min period) <單一node上對varied data調整>
 short int Connection_Interval=2;		//0=>LDC (各service interval除node1level), 1=>Greedy (選 Min interval除node1level), 2=>EIMA <TDMA和connection interval上的校正>
 short int WriReq_Sche=2;				//0=>NPEDF 1=>RR 2=>EIF 3=>Polling <Gateway 通知node傳輸順序>
@@ -92,8 +92,8 @@ double I_sleep=0.000001;		//Sleep 電流 1uA
 double Time_sleep=0.001;		//Sleep 時間 1ms (uint time)
 double I_notify=0.008246;		//Notify 電流 8.246mA
 double Time_notify=0.002675;	//Notify 時間 2.675ms
-double I_Tran=0.014274;			//Transmission 電流 14.274mA
-double Time_Tran=0.00049;		//Transmission 時間 0.49ms
+double I_Tran=0.009564;			//Transmission 電流 14.274mA
+double Time_Tran=0.00182;		//Transmission 時間 0.49ms
 double BatteryCapacity=0.230;	//230mAh (有其他篇章 是以540mAh <Energy Efficient MAC for Qos Traffic in Wireless Body Area Network)>
 double unit=0.001;				//時間單位為1ms
 
