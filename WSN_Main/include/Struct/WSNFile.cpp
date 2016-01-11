@@ -352,6 +352,8 @@ void ExperimentSetting(short int*S_inv, short int*Star_inv, short int*Sche){
 		*S_inv=3;
 	}else if(Single_invterval.compare("Static")==0){
 		*S_inv=4;
+	}else if(Single_invterval.compare("IOS")==0){
+		*S_inv=5;
 	}else{
 		printf("Error No Single interval proposal\n");
 		system("PAUSE");
@@ -364,6 +366,8 @@ void ExperimentSetting(short int*S_inv, short int*Star_inv, short int*Sche){
 		*Star_inv=0;
 	}else if(Star_invterval.compare("Static")==0){
 		*Star_inv=1;
+	}else if(Star_invterval.compare("IOS")==0){
+		*Star_inv=3;
 	}else{
 		printf("Error No Star efficiency proposal\n");
 		system("PAUSE");

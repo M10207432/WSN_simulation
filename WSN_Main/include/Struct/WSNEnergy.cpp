@@ -104,7 +104,7 @@ void NodeState(){
 void Node_EnergyState(Node *node){
 	
 	double v=I_sleep, b=I_notify;
-	I_sleep=0.0001;
+	I_sleep=0.0004;
 	//I_notify=0.009999;
 	if(node!=NULL){
 		/*====================================================

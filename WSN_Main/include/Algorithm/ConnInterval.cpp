@@ -42,6 +42,9 @@ void EventInterval::ServiceInterval_Algorithm(int Rateproposal){
 	case 4:
 		Greedy();		//用最短minimum period當作service interval
 		break;
+	case 5:
+		Single_IOS(IOS_ServiceInterval);
+		break;
 	default:
 		break;
 	}
@@ -68,6 +71,9 @@ void EventInterval::ConnectionInterval_Algorithm(int proposal){
 		break;
 	case 2:
 		EIMA();				//用avg current作為weight，分配connection interval
+		break;
+	case 3:
+		Multiple_IOS(IOS_ConnectionInterval);
 		break;
 	default:
 		break;
@@ -293,7 +299,6 @@ void EventInterval::DIF(){
 	delete []DIFpacket;
 }
 
-
 /*============================================
 				Greedy
 		找出node中最小period，
@@ -317,6 +322,18 @@ void EventInterval::Greedy(){
 		//Assign Service interval
 		n->eventinterval=Minpkt->period;
 	}
+}
+
+/*============================================
+				IOS
+		於defualt setting中是以固定時間設定
+============================================*/
+void EventInterval::Single_IOS(double ServiceInterval){
+	for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd){
+		n->eventinterval=ServiceInterval;
+	}
+
+	
 }
 
 /*==============================================
@@ -602,6 +619,40 @@ void EventInterval::EIMA(){
 #endif
 }
 
+
+void EventInterval::Multiple_IOS(double ConnectionInterval){
+	for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd){
+		n->eventinterval=ConnectionInterval;
+	}
+
+	//-------------------------------建立FrameTable 並且assign connection interval
+	short int frameid=1;
+	FrameTbl=new FrameTable;
+	FrameTable* Ftbl=FrameTbl;
+	
+	for(TDMATable* tbl=TDMA_Tbl; tbl!=NULL; tbl=tbl->next_tbl){
+		if(tbl->slot==frameid && tbl->n1->SendNode==Head){
+			//Init setting
+			Ftbl->id=frameid++;
+			Ftbl->Currentflag=false;
+			Ftbl->arrival=0;
+			Ftbl->ConnNode= tbl->n1;					//Assign node給此Frame
+
+			//Waiting time & period setting
+			Ftbl->Period=tbl->n1->eventinterval;		//Assign Service interval as period
+			Ftbl->Deadline=tbl->n1->eventinterval;		//Assign Service interval as Deadline
+			Ftbl->Size=tbl->n1->eventinterval;		//Service inteval計算connection interval
+			Ftbl->ConnNode->eventinterval=Ftbl->Size;	//更新node上的connection interval
+			Ftbl->Utilization=Ftbl->Size/Ftbl->Period;	
+
+			//建立下一個FrameTable
+			Ftbl->next_tbl=new FrameTable;
+			Ftbl->next_tbl->pre_tbl=Ftbl;
+			Ftbl=Ftbl->next_tbl;
+		}
+	}
+	Ftbl->pre_tbl->next_tbl=NULL;
+}
 /*=====================================
 	對需要Scan 的Conn Node
 	做Scan duration 計算，以及Tc重新計算
