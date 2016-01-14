@@ -62,28 +62,59 @@ void EventInterval::ServiceInterval_Algorithm(int Rateproposal){
 	(Mulitple node with collision constrint)
 ==============================================*/
 void EventInterval::ConnectionInterval_Algorithm(int proposal){
-	switch (proposal){
-	case 0:
-		LDC();				//各個service interval除上node1level作為weight，分配connection interval
-		break;	
-	case 1:
-		IntervalDivide();	//用minimum service interval除上node1level作為weight，分配connection interval
-		break;
-	case 2:
-		EIMA();				//用avg current作為weight，分配connection interval
-		break;
-	case 3:
-		Multiple_IOS(IOS_ConnectionInterval);
-		break;
-	default:
-		break;
-	}
 
-	//確認每一node interval不小於10ms
-	for(Node* node=Head->nextnd; node!=NULL; node=node->nextnd){
-		if(node->eventinterval<Minumum_interval){
-			node->eventinterval=Minumum_interval;
+	if((nodelevel1+nodelevel2)!=1){
+		switch (proposal){
+		case 0:
+			LDC();				//各個service interval除上node1level作為weight，分配connection interval
+			break;	
+		case 1:
+			IntervalDivide();	//用minimum service interval除上node1level作為weight，分配connection interval
+			break;
+		case 2:
+			EIMA();				//用avg current作為weight，分配connection interval
+			break;
+		case 3:
+			Multiple_IOS(IOS_ConnectionInterval);
+			break;
+		default:
+			break;
 		}
+
+		//確認每一node interval不小於10ms
+		for(Node* node=Head->nextnd; node!=NULL; node=node->nextnd){
+			if(node->eventinterval<Minumum_interval){
+				node->eventinterval=Minumum_interval;
+			}
+		}
+	}else{
+		//-------------------------------建立FrameTable 並且assign connection interval
+		double frameid=1;
+		FrameTbl=new FrameTable;
+		FrameTable* Ftbl=FrameTbl;
+	
+		for(TDMATable* tbl=TDMA_Tbl; tbl!=NULL; tbl=tbl->next_tbl){
+			if(tbl->slot==frameid && tbl->n1->SendNode==Head){
+				//Init setting
+				Ftbl->id=frameid++;
+				Ftbl->Currentflag=false;
+				Ftbl->arrival=0;
+				Ftbl->ConnNode= tbl->n1;					//Assign node給此Frame
+
+				//Waiting time & period setting
+				Ftbl->Period=tbl->n1->eventinterval;		//Assign Service interval as period
+				Ftbl->Deadline=tbl->n1->eventinterval;		//Assign Service interval as Deadline
+				Ftbl->Size=tbl->n1->eventinterval;		//Service inteval計算connection interval
+				Ftbl->ConnNode->eventinterval=Ftbl->Size;	//更新node上的connection interval
+				Ftbl->Utilization=Ftbl->Size/Ftbl->Period;	
+
+				//建立下一個FrameTable
+				Ftbl->next_tbl=new FrameTable;
+				Ftbl->next_tbl->pre_tbl=Ftbl;
+				Ftbl=Ftbl->next_tbl;
+			}
+		}
+		Ftbl->pre_tbl->next_tbl=NULL;
 	}
 }
 
@@ -182,6 +213,7 @@ step3:計算各區間 rate
 step4:找出最大rate , 其在區間的packet assign 此rate
 (找區間時要將有rate的區間時間拿掉)
 
+map的
 分配好每一packet的rate
 ===========================*/
 void EventInterval::DIF(){
@@ -332,8 +364,6 @@ void EventInterval::Single_IOS(double ServiceInterval){
 	for(Node* n=Head->nextnd; n!=NULL; n=n->nextnd){
 		n->eventinterval=ServiceInterval;
 	}
-
-	
 }
 
 /*==============================================

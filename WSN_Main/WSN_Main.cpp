@@ -24,13 +24,13 @@ using namespace std;
 ==================================*/
 const float inv_r=40;					//Input 各個rate間距
 const float MIN_Rate=40;				//Input開始的rate
-const float MAX_Rate=960;				//Input最終rate
+const float MAX_Rate=480;				//Input最終rate
 const short int Set=100;				//Input set 數量
 
 short int readsetting=1;				//是否要讀取本地Setting.txt
-short int Service_interval=5;			//0=>Event, 1=>MEI, 2=>DIF, 3=>Lazy and 4=>Greedy (Min period) <單一node上對varied data調整>, 5=>IOS(30ms)
-short int Connection_Interval=3;		//0=>LDC (各service interval除node1level), 1=>Greedy (選 Min interval除node1level), 2=>EIMA <TDMA和connection interval上的校正>, 3=>IOS(20ms)
-short int WriReq_Sche=1;				//0=>NPEDF 1=>RR 2=>EIF 3=>Polling <Gateway 通知node傳輸順序>
+short int Service_interval=1;			//0=>Event, 1=>MEI, 2=>DIF, 3=>Lazy and 4=>Greedy (Min period) <單一node上對varied data調整>, 5=>IOS(30ms)
+short int Connection_Interval=2;		//0=>LDC (各service interval除node1level), 1=>Greedy (選 Min interval除node1level), 2=>EIMA <TDMA和connection interval上的校正>, 3=>IOS(20ms)
+short int WriReq_Sche=2;				//0=>NPEDF 1=>RR 2=>EIF 3=>Polling <Gateway 通知node傳輸順序>
 
 bool sche_flag=false;					//是否要測試schedulability
 int EXECBclock=100;						//Lazy Timer (ms)
@@ -84,7 +84,7 @@ double Connectioninterval=0;		//Conneciton inteval 只會在10ms~4000ms
 double totalevent=0;				//Event數量
 bool Meetflag=true;					//看是否meet deadline
 
-double IOS_ServiceInterval=30;		//單一node中 IOS系統對於device上service interval調整 (ms)
+double IOS_ServiceInterval=40;		//單一node中 IOS系統對於device上service interval調整 (ms)
 double IOS_ConnectionInterval=20;	//Muliple node中 IOS系統對於device上connection interval調整 (ms)
 /*========================================
 		Power function parameter

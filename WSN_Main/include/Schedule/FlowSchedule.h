@@ -4,7 +4,7 @@ extern bool Meetflag;				//看是否meet deadline
 extern int ReadyQ_overflag; 
 extern double Maxrate;				//最高速度為20bytes/slot
 extern double payload;				//payload 為 20bytes
-extern int Maxbuffersize;			//Maxbuffersize 為 6個packets
+extern int Maxbuffersize;			//Maxbuffersize 為 4個packets
 extern int Pktsize;					//計算IntervalPower的pkt num
 
 extern int EXECBclock;				//做DIF與Lazy 計時器
