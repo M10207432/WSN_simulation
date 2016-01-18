@@ -690,11 +690,20 @@ void LazyOnWrite(){
 	Rate_data=load/(min_deadline-Timeslot);							//計算此時的data rate
 	Rate_BLE=(payload*Maxbuffersize)/(Head->nextnd->eventinterval);	//計算此時的BLE rate
 
+	/*
 	if(Rate_data>=Rate_BLE){
 		Head->nextnd->eventinterval=10;
 		
 		Callbackclock=EXECBclock;		//Reset timer
 	}
+	*/
+	
+	if(Rate_data>=Rate_BLE){
+		Head->nextnd->eventinterval=10;
+		
+		Callbackclock=EXECBclock;		//Reset timer
+	}
+
 }
 /*=========================================
 		Timer Callback
@@ -727,7 +736,7 @@ void LazyIntervalCB(){
 		MinRate_BLE=(payload*Maxbuffersize)/(long_period);				//計算此時的BLE rate
 		Rate_BLE=(payload*Maxbuffersize)/(Head->nextnd->eventinterval);	//計算此時的BLE rate
 
-		Rate_reduce=MaxRate_data-MinRate_BLE;
+		Rate_reduce=dec_cof*(MaxRate_data-MinRate_BLE);
 
 		if(Rate_CB<(Rate_BLE-Rate_reduce) && Rate_reduce>0){
 			Head->nextnd->eventinterval=(payload*Maxbuffersize)/(Rate_BLE-Rate_reduce);

@@ -8,6 +8,7 @@ extern int Maxbuffersize;			//Maxbuffersize 為 4個packets
 extern int Pktsize;					//計算IntervalPower的pkt num
 
 extern int EXECBclock;				//做DIF與Lazy 計時器
+extern int dec_cof;					//Lazy的decrease係數
 extern int Callbackclock;			//做DIF與Lazy 計時器
 extern int overheadcount;
 extern FrameTable *Cycle;
